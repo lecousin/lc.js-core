@@ -26,7 +26,8 @@ module.exports = function(grunt) {
 		jasmine: {
 			src: 'src/main/javascript/**/*.js',
 			options: {
-				specs: 'src/test/specs/**/*.js'
+				specs: 'src/test/specs/**/*.js',
+				noSandbox: true
 			}
 		}
     });
