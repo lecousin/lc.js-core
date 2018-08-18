@@ -1,0 +1,8 @@
+// footer javascript: after all other javascript files of this library
+
+//trigger processing of page once the application is loaded
+lc.app.onLoaded(function() {
+	lc.html.process(document.body, function() {
+		lc.layout.triggerChange(document.body);
+	});
+});
