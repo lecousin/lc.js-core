@@ -1039,7 +1039,7 @@ lc.core.namespace("lc.locale", {
 		if (window.localStorage)
 			window.localStorage.setItem("lc.locale", lang);
 		else
-			lc.cookie.set("lc.locale", lang, "/", 365*24*60*60);
+			lc.cookies.set("lc.locale", lang, "/", 365*24*60*60);
 		
 		// load declared namespaces
 		for (var i = 0; i < lc.locale._namespaces.length; ++i)
@@ -1253,7 +1253,7 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 			lc.locale._userLanguages.push(lang);
 	}
 	// language from cookie
-	var lang = lc.cookie.get("lc.locale");
+	var lang = lc.cookies.get("lc.locale");
 	if (lang && !lc.locale._userLanguages.contains(lang))
 		lc.locale._userLanguages.push(lang);
 	
