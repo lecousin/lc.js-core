@@ -302,7 +302,7 @@ lc.async.Callback.callListeners = function(listeners, args) {
 			else
 				throw "Unexpected listener type: " + lc.core.typeOf(listeners[i]);
 		} catch (error) {
-			lc.log.error("lc.async.Callback", "A listener thrown an exception: " + listeners[i] + ": " + error);
+			lc.log.error("lc.async.Callback", "A listener thrown an exception: " + listeners[i] + ": " + error, error);
 		}
 	}
 };
@@ -928,7 +928,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 				continue;
 			}
 			// running - preprocessors
-			if (e._preprocessors) {
+			if (e._preprocessors.length > 0) {
 				var processor = e._preprocessors[0];
 				e._preprocessors.splice(0, 1);
 				lc.async.Callback.callListeners(processor.processor, [e.element, e, this]);
@@ -940,7 +940,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 				for (var i = 0; i < e.element.childNodes.length; ++i)
 					e._children.push(e.element.childNodes[i]);
 			}
-			if (e._children) {
+			if (e._children.length > 0) {
 				var child = e._children[0];
 				e._children.splice(0, 1);
 				var childStatus = new lc.html.processor.ElementStatus(child, this);
@@ -950,7 +950,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 			// running - postprocessors
 			if (e._postprocessors === undefined)
 				e._postprocessors = lc.html.processor._postprocessors.splice();
-			if (e._postprocessors) {
+			if (e._postprocessors.length > 0) {
 				var processor = e._postprocessors[0];
 				e._postprocessors.splice(0, 1);
 				lc.async.Callback.callListeners(processor.processor, [e.element, e, this]);
@@ -1348,6 +1348,8 @@ lc.core.namespace("lc.log", {
 			if (i >= 0) {
 				var j = format.indexOf("}", i + 2);
 				if (j > 0) {
+					if (i > pos)
+						components.push(new lc.log.FormatComponentString(format.substr(pos, i)));
 					pos = j + 1;
 					var s = format.substring(i + 2, j);
 					var size = -1;
@@ -1395,7 +1397,11 @@ lc.core.namespace("lc.log", {
 		lc.log._loggerLevel[logger] = level;
 	},
 	
-	log: function(logger, level, message) {
+	log: function(logger, level, message, exception) {
+		if (message.stack)
+			message = "" + message + "\n" + message.stack;
+		if (exception)
+			message = message + "\n" + exception.stack;
 		if (!logger) {
 			// default
 			if (level < lc.log._defaultLevel)
@@ -1429,24 +1435,24 @@ lc.core.namespace("lc.log", {
 			console.log(s);
 	},
 	
-	trace: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.TRACE, message);
+	trace: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.TRACE, message, exception);
 	},
 	
-	debug: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.DEBUG, message);
+	debug: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.DEBUG, message, exception);
 	},
 	
-	info: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.INFO, message);
+	info: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.INFO, message, exception);
 	},
 	
-	warn: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.WARN, message);
+	warn: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.WARN, message, exception);
 	},
 	
-	error: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.ERROR, message);
+	error: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.ERROR, message, exception);
 	}
 	
 });

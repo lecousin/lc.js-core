@@ -105,7 +105,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 				continue;
 			}
 			// running - preprocessors
-			if (e._preprocessors) {
+			if (e._preprocessors.length > 0) {
 				var processor = e._preprocessors[0];
 				e._preprocessors.splice(0, 1);
 				lc.async.Callback.callListeners(processor.processor, [e.element, e, this]);
@@ -117,7 +117,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 				for (var i = 0; i < e.element.childNodes.length; ++i)
 					e._children.push(e.element.childNodes[i]);
 			}
-			if (e._children) {
+			if (e._children.length > 0) {
 				var child = e._children[0];
 				e._children.splice(0, 1);
 				var childStatus = new lc.html.processor.ElementStatus(child, this);
@@ -127,7 +127,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 			// running - postprocessors
 			if (e._postprocessors === undefined)
 				e._postprocessors = lc.html.processor._postprocessors.splice();
-			if (e._postprocessors) {
+			if (e._postprocessors.length > 0) {
 				var processor = e._postprocessors[0];
 				e._postprocessors.splice(0, 1);
 				lc.async.Callback.callListeners(processor.processor, [e.element, e, this]);

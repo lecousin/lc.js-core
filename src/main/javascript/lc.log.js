@@ -20,6 +20,8 @@ lc.core.namespace("lc.log", {
 			if (i >= 0) {
 				var j = format.indexOf("}", i + 2);
 				if (j > 0) {
+					if (i > pos)
+						components.push(new lc.log.FormatComponentString(format.substr(pos, i)));
 					pos = j + 1;
 					var s = format.substring(i + 2, j);
 					var size = -1;
@@ -67,7 +69,11 @@ lc.core.namespace("lc.log", {
 		lc.log._loggerLevel[logger] = level;
 	},
 	
-	log: function(logger, level, message) {
+	log: function(logger, level, message, exception) {
+		if (message.stack)
+			message = "" + message + "\n" + message.stack;
+		if (exception)
+			message = message + "\n" + exception.stack;
 		if (!logger) {
 			// default
 			if (level < lc.log._defaultLevel)
@@ -101,24 +107,24 @@ lc.core.namespace("lc.log", {
 			console.log(s);
 	},
 	
-	trace: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.TRACE, message);
+	trace: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.TRACE, message, exception);
 	},
 	
-	debug: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.DEBUG, message);
+	debug: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.DEBUG, message, exception);
 	},
 	
-	info: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.INFO, message);
+	info: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.INFO, message, exception);
 	},
 	
-	warn: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.WARN, message);
+	warn: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.WARN, message, exception);
 	},
 	
-	error: function(logger, message) {
-		return lc.log.log(logger, lc.log.Levels.ERROR, message);
+	error: function(logger, message, exception) {
+		return lc.log.log(logger, lc.log.Levels.ERROR, message, exception);
 	}
 	
 });

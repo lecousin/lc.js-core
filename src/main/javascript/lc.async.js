@@ -44,7 +44,7 @@ lc.async.Callback.callListeners = function(listeners, args) {
 			else
 				throw "Unexpected listener type: " + lc.core.typeOf(listeners[i]);
 		} catch (error) {
-			lc.log.error("lc.async.Callback", "A listener thrown an exception: " + listeners[i] + ": " + error);
+			lc.log.error("lc.async.Callback", "A listener thrown an exception: " + listeners[i] + ": " + error, error);
 		}
 	}
 };
