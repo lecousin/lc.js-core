@@ -1430,23 +1430,23 @@ lc.core.namespace("lc.log", {
 	},
 	
 	trace: function(logger, message) {
-		return log(logger, lc.log.Levels.TRACE, message);
+		return lc.log.log(logger, lc.log.Levels.TRACE, message);
 	},
 	
 	debug: function(logger, message) {
-		return log(logger, lc.log.Levels.DEBUG, message);
+		return lc.log.log(logger, lc.log.Levels.DEBUG, message);
 	},
 	
 	info: function(logger, message) {
-		return log(logger, lc.log.Levels.INFO, message);
+		return lc.log.log(logger, lc.log.Levels.INFO, message);
 	},
 	
 	warn: function(logger, message) {
-		return log(logger, lc.log.Levels.WARN, message);
+		return lc.log.log(logger, lc.log.Levels.WARN, message);
 	},
 	
 	error: function(logger, message) {
-		return log(logger, lc.log.Levels.ERROR, message);
+		return lc.log.log(logger, lc.log.Levels.ERROR, message);
 	}
 	
 });
