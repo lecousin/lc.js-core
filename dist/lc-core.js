@@ -218,7 +218,7 @@ window._lc_ajax_XMLHttpRequest_send = XMLHttpRequest.prototype.send;
 XMLHttpRequest.prototype.send = function(body) {
 	lc.ajax.customize(this);
 	// TODO lc.ajax.pending(this);
-	window._lc_ajax_XMLHttpRequest_send(body);
+	window._lc_ajax_XMLHttpRequest_send.apply(this, [body]);
 }
 lc.core.createClass("lc.async.Callback", function(objThis, fct, firstArgs) {
 	// Callback constructor
