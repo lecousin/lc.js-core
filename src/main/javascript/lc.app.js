@@ -33,7 +33,7 @@ lc.core.namespace("lc.app", {
 	
 	loaded: function() {
 		lc.app.newDefinitionsAvailable();
-		lc.Callback.callListeners(lc.app._applicationListeners);
+		lc.async.Callback.callListeners(lc.app._applicationListeners);
 		lc.app._applicationListeners = null;
 		lc.app.newDefinitionsAvailable();
 		for (var expression in lc.app._expectedExpressions)
