@@ -6,3 +6,6 @@ lc.app.onLoaded(function() {
 		lc.layout.triggerChange(document.body);
 	});
 });
+
+lc.core._loaded = true;
+lc.app.newDefinitionsAvailable();

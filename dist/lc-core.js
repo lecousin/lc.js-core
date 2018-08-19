@@ -176,7 +176,7 @@ lc.core.namespace("lc.app", {
 	
 	onDefined: function(expression, listener) {
 		var value = eval("("+expression+")");
-		if (typeof value != 'undefined') {
+		if (typeof value != 'undefined' && lc.core._loaded) {
 			lc.async.Callback.callListeners(listener);
 			return;
 		}
@@ -1843,4 +1843,6 @@ lc.app.onLoaded(function() {
 	});
 });
 
+lc.core._loaded = true;
+lc.app.newDefinitionsAvailable();
 //# sourceMappingURL=lc-core.js.map

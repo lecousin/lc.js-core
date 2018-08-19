@@ -5,7 +5,7 @@ lc.core.namespace("lc.app", {
 	
 	onDefined: function(expression, listener) {
 		var value = eval("("+expression+")");
-		if (typeof value != 'undefined') {
+		if (typeof value != 'undefined' && lc.core._loaded) {
 			lc.async.Callback.callListeners(listener);
 			return;
 		}
