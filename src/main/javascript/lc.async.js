@@ -95,7 +95,7 @@ lc.core.createClass("lc.async.Future", function() {
 		return this;
 	},
 	
-	onsucess: function(listener) {
+	onsuccess: function(listener) {
 		if (lc.core.instanceOf(listener, lc.async.Future))
 			return onsuccess(function(result) { listener.success(result); });
 		if (this._done) {

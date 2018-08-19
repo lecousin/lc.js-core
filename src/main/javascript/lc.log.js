@@ -127,7 +127,7 @@ lc.core.createClass("lc.log.FormatComponentString", function(str) {
 	this.string = str;
 }, {
 	format: function(logger, level, message) {
-		return string;
+		return this.string;
 	}
 });
 

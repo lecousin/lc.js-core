@@ -2,7 +2,7 @@
 
 //trigger processing of page once the application is loaded
 lc.app.onLoaded(function() {
-	lc.html.process(document.body, function() {
+	lc.html.processor.process(document.body, function() {
 		lc.layout.triggerChange(document.body);
 	});
 });

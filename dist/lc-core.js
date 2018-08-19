@@ -353,7 +353,7 @@ lc.core.createClass("lc.async.Future", function() {
 		return this;
 	},
 	
-	onsucess: function(listener) {
+	onsuccess: function(listener) {
 		if (lc.core.instanceOf(listener, lc.async.Future))
 			return onsuccess(function(result) { listener.success(result); });
 		if (this._done) {
@@ -1455,7 +1455,7 @@ lc.core.createClass("lc.log.FormatComponentString", function(str) {
 	this.string = str;
 }, {
 	format: function(logger, level, message) {
-		return string;
+		return this.string;
 	}
 });
 
@@ -1838,7 +1838,7 @@ lc.core.namespace("lc.xml", {
 
 //trigger processing of page once the application is loaded
 lc.app.onLoaded(function() {
-	lc.html.process(document.body, function() {
+	lc.html.processor.process(document.body, function() {
 		lc.layout.triggerChange(document.body);
 	});
 });
