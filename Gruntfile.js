@@ -9,7 +9,7 @@ module.exports = function(grunt) {
 				sourceMap: 'true',
 			},
 			dist: {
-				src: ['src/main/javascript/lc.core.js','src/main/javascript/lc.app.js','src/main/javascript/**/*.js','!src/main/javascript/lc.footer.js','src/main/javascript/lc.footer.js'],
+				src: ['src/main/javascript/lc.polyfill.js','src/main/javascript/lc.core.js','src/main/javascript/lc.app.js','src/main/javascript/**/*.js','!src/main/javascript/lc.footer.js','src/main/javascript/lc.footer.js'],
 				dest: 'dist/lc-core.js',
 			}
 		},
