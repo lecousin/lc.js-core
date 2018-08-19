@@ -123,29 +123,31 @@ lc.core.namespace("lc.log", {
 	
 });
 
-lc.core.createClass("lc.log.FormatComponentString", {
+lc.core.createClass("lc.log.FormatComponentString", function(str) {
+	this.string = str;
+}, {
 	format: function(logger, level, message) {
 		return string;
 	}
-}, function(str) {
-	this.string = str;
 });
 
-lc.core.createClass("lc.log.FormatComponentTime", {
+lc.core.createClass("lc.log.FormatComponentTime", function() {
+}, {
 	format: function(logger, level, message) {
 		return new Date().toLocaleTimeString();
 	}
-}, function() {
 });
 
-lc.core.createClass("lc.log.FormatComponentDateTime", {
+lc.core.createClass("lc.log.FormatComponentDateTime", function() {
+}, {
 	format: function(logger, level, message) {
 		return new Date().toLocaleString();
 	}
-}, function() {
 });
 
-lc.core.createClass("lc.log.FormatComponentLevel", {
+lc.core.createClass("lc.log.FormatComponentLevel", function(size) {
+	this.size = size <= 0 ? 5 : size;
+}, {
 	format: function(logger, level, message) {
 		var s = "";
 		for (var name in lc.log.Levels)
@@ -157,11 +159,11 @@ lc.core.createClass("lc.log.FormatComponentLevel", {
 		while (s.length < this.size) s = s + ' ';
 		return s;
 	}
-}, function(size) {
-	this.size = size <= 0 ? 5 : size;
 });
 
-lc.core.createClass("lc.log.FormatComponentLogger", {
+lc.core.createClass("lc.log.FormatComponentLogger", function(size) {
+	this.size = size;
+}, {
 	format: function(logger, level, message) {
 		var s = logger;
 		if (this.size > 0) {
@@ -170,11 +172,11 @@ lc.core.createClass("lc.log.FormatComponentLogger", {
 		}
 		return s;
 	}
-}, function(size) {
-	this.size = size;
 });
 
-lc.core.createClass("lc.log.FormatComponentMessage", {
+lc.core.createClass("lc.log.FormatComponentMessage", function(size) {
+	this.size = size;
+}, {
 	format: function(logger, level, message) {
 		var s = "" + message;
 		if (this.size > 0) {
@@ -183,8 +185,6 @@ lc.core.createClass("lc.log.FormatComponentMessage", {
 		}
 		return s;
 	}
-}, function(size) {
-	this.size = size;
 });
 
 lc.log.setFormat("${time} ${level} ${logger:15} ${message}");

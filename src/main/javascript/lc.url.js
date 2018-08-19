@@ -1,42 +1,4 @@
-lc.core.createClass("lc.URL", {
-	
-	/** create a string representing the URL */
-	toString: function() {
-		var s;
-		if (this.protocol) {
-			s = this.protocol+"://"+this.host;
-			if (this.port) s += ":"+this.port;
-		} else
-			s = "";
-		s += this.path;
-		var first = true;
-		for (var name in this.params) {
-			if (first) { s += "?"; first = false; } else s += "&";
-			s += encodeURIComponent(name) + "=" + encodeURIComponent(this.params[name]);
-		}
-		if (this.hash)
-			s += "#"+this.hash;
-		return s;
-	},
-	
-	equals: function(url) {
-		if (!this.equalsWithoutParameters(url)) return false;
-		for (var name in this.params)
-			if (url.params[name] != this.params[name]) return false;
-		for (var name in url.params)
-			if (url.params[name] != this.params[name]) return false;
-		return true;
-	},
-	
-	equalsWithoutParameters: function(url) {
-		if (this.protocol != url.protocol) return false;
-		if (this.host != url.host) return false;
-		if (this.port != url.port) return false;
-		if (this.path != url.path) return false;
-		return true;
-	}
-
-}, function(s) {
+lc.core.createClass("lc.URL", function(s) {
 	if ((s instanceof lc.URL) || (typeof s.protocol != 'undefined')) {
 		this.protocol = s.protocol;
 		this.host = s.host;
@@ -142,6 +104,44 @@ lc.core.createClass("lc.URL", {
 	
 	this.host = this.host.toLowerCase();
 	this.path = this.path.toLowerCase();
+}, {
+	
+	/** create a string representing the URL */
+	toString: function() {
+		var s;
+		if (this.protocol) {
+			s = this.protocol+"://"+this.host;
+			if (this.port) s += ":"+this.port;
+		} else
+			s = "";
+		s += this.path;
+		var first = true;
+		for (var name in this.params) {
+			if (first) { s += "?"; first = false; } else s += "&";
+			s += encodeURIComponent(name) + "=" + encodeURIComponent(this.params[name]);
+		}
+		if (this.hash)
+			s += "#"+this.hash;
+		return s;
+	},
+	
+	equals: function(url) {
+		if (!this.equalsWithoutParameters(url)) return false;
+		for (var name in this.params)
+			if (url.params[name] != this.params[name]) return false;
+		for (var name in url.params)
+			if (url.params[name] != this.params[name]) return false;
+		return true;
+	},
+	
+	equalsWithoutParameters: function(url) {
+		if (this.protocol != url.protocol) return false;
+		if (this.host != url.host) return false;
+		if (this.port != url.port) return false;
+		if (this.path != url.path) return false;
+		return true;
+	}
+
 });
 
 lc.URL.decode = function(s) { return decodeURIComponent(s).replace(/\+/g, " "); }

@@ -1,4 +1,9 @@
-lc.core.createClass("lc.async.Callback", {
+lc.core.createClass("lc.async.Callback", function(objThis, fct, firstArgs) {
+	// Callback constructor
+	this._this = objThis;
+	this._fct = fct;
+	this._args = firstArgs;
+}, {
 	
 	call: function() {
 		var args = [];
@@ -25,11 +30,6 @@ lc.core.createClass("lc.async.Callback", {
 		};
 	}
 	
-}, function(objThis, fct, firstArgs) {
-	// Callback constructor
-	this._this = objThis;
-	this._fct = fct;
-	this._args = firstArgs;
 });
 
 lc.async.Callback.callListeners = function(listeners, args) {
@@ -58,7 +58,12 @@ lc.async.Callback.from = function(callback) {
 };
 
 
-lc.core.createClass("lc.async.Future", {
+lc.core.createClass("lc.async.Future", function() {
+	// Future constructor
+	this._successListeners = [];
+	this._errorListeners = [];
+	this._doneListeners = [];
+}, {
 	
 	_done: false,
 	_result: undefined,
@@ -138,14 +143,14 @@ lc.core.createClass("lc.async.Future", {
 		this._errorListeners = null;
 	}
 	
-}, function() {
-	// Future constructor
-	this._successListeners = [];
-	this._errorListeners = [];
-	this._doneListeners = [];
 });
 
-lc.core.extendClass("lc.async.JoinPoint", {
+lc.core.extendClass("lc.async.JoinPoint", lc.async.Future, function() {
+	// JoinPoint constructor
+	lc.async.Future.call(this);
+	this._remaining = 0;
+	this._started = false;
+}, {
 	
 	addToJoin: function(toJoin) {
 		if (typeof toJoin === 'number')
@@ -177,9 +182,4 @@ lc.core.extendClass("lc.async.JoinPoint", {
 			this.success(null);
 	}
 
-}, function() {
-	// JoinPoint constructor
-	lc.async.Future.call(this);
-	this._remaining = 0;
-	this._started = false;
-}, lc.async.Future);
+});

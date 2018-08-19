@@ -23,7 +23,7 @@ lc.core = {
 	
 	// classes
 	
-	createClass: function(name, proto, ctor) {
+	createClass: function(name, ctor, proto) {
 		var names = name.split(".");
 		var ns = window;
 		for (var i = 0; i < names.length - 1; ++i) {
@@ -39,7 +39,7 @@ lc.core = {
 		return parent[cname];
 	},
 	
-	extendClass: function(name, proto, ctor, parents) {
+	extendClass: function(name, parents, ctor, proto) {
 		var names = name.split(".");
 		var ns = window;
 		for (var i = 0; i < names.length - 1; ++i) {

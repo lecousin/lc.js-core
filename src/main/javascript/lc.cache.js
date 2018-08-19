@@ -1,4 +1,12 @@
-lc.core.createClass("lc.Cache", {
+lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) {
+	this._timeout = itemTimeout;
+	this._onrelease = onrelease;
+	if (itemTimeout > 0) {
+		if (checkInterval <= 0) checkInterval = 30000;
+		var that = this;
+		this._interval = setInterval(function() { that._checkTimeout(); }, checkInterval);
+	}
+}, {
 	
 	_items: new Map(),
 	
@@ -52,12 +60,4 @@ lc.core.createClass("lc.Cache", {
 		});
 	}
 	
-}, function(itemTimeout, onrelease, checkInterval) {
-	this._timeout = itemTimeout;
-	this._onrelease = onrelease;
-	if (itemTimeout > 0) {
-		if (checkInterval <= 0) checkInterval = 30000;
-		var that = this;
-		this._interval = setInterval(function() { that._checkTimeout(); }, checkInterval);
-	}
 });

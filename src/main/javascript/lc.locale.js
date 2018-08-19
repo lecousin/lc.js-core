@@ -135,7 +135,27 @@ lc.core.namespace("lc.locale", {
 	
 });
 
-lc.core.createClass("lc.locale.Namespace", {
+lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
+	if (baseUrl.charAt(baseUrl.length - 1) != '/') baseUrl += '/';
+	this.name = name;
+	this.url = baseUrl + name;
+	this._content = undefined;
+	if (languages) {
+		this.languages = languages;
+		if (lc.locale._lang) this.reload();
+	} else
+		this.languages = lc.ajax.get(this.url + '.languages')
+			.onsuccess(new lc.async.Callback(this, function(content) {
+				var s = content.split(",");
+				var list = [];
+				for (var i = 0; i < s.length; ++i) {
+					var lang = s[i].trim();
+					if (lang.length > 0) list.push(lang);
+				}
+				this.languages = list;
+				if (lc.locale._lang) this.reload();
+			}));
+}, {
 	
 	reload: function() {
 		this._content = lc.ajax.get(this.url + '.' + lc.locale._lang)
@@ -198,26 +218,6 @@ lc.core.createClass("lc.locale.Namespace", {
 		return values;
 	}
 	
-}, function(name, baseUrl, languages) {
-	if (baseUrl.charAt(baseUrl.length - 1) != '/') baseUrl += '/';
-	this.name = name;
-	this.url = baseUrl + name;
-	this._content = undefined;
-	if (languages) {
-		this.languages = languages;
-		if (lc.locale._lang) this.reload();
-	} else
-		this.languages = lc.ajax.get(this.url + '.languages')
-			.onsuccess(new lc.async.Callback(this, function(content) {
-				var s = content.split(",");
-				var list = [];
-				for (var i = 0; i < s.length; ++i) {
-					var lang = s[i].trim();
-					if (lang.length > 0) list.push(lang);
-				}
-				this.languages = list;
-				if (lc.locale._lang) this.reload();
-			}));
 });
 
 // load user's languages

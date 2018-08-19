@@ -1,6 +1,10 @@
 // Handle layout change
 
-lc.core.createClass("lc.layout.Handler", {
+lc.core.createClass("lc.layout.Handler", function(element) {
+	element._lc_layout_handler = this;
+	this._listeners = [];
+	this._refreshValues(element);
+}, {
 	
 	_refreshValues: function(element) {
 		this._clientWidth = element.clientWidth;
@@ -24,10 +28,6 @@ lc.core.createClass("lc.layout.Handler", {
 		}
 	}
 	
-}, function(element) {
-	element._lc_layout_handler = this;
-	this._listeners = [];
-	this._refreshValues(element);
 });
 
 lc.layout.onChange = function(element, listener) {

@@ -72,3 +72,61 @@ lc.core.namespace("lc.events", {
 	}
 	
 });
+
+lc.core.createClass("lc.events.Producer", function() {
+	if (this.eventsListeners) return; // already initialized
+	this.eventsListeners = {};
+	this.listen = this.on; // alias
+}, {
+
+	registerEvent: function(eventName) {
+		eventName = eventName.toLowerCase();
+		this.eventsListeners[eventName] = [];
+	},
+	
+	registerEvents: function(eventsNames) {
+		for (var i = 0; i < eventsNames.length; ++i)
+			this.eventsListeners[eventsNames[i].toLowerCase()] = [];
+	},
+	
+	unregisterEvents: function(eventsNames) {
+		for (var i = 0; i < eventsNames.length; ++i)
+			delete this.eventsListeners[eventsNames[i].toLowerCase()];
+	},
+	
+	on: function(eventName, listener) {
+		eventName = eventName.toLowerCase();
+		if (typeof this.eventsListeners[eventName] === 'undefined')
+			throw "Unknown event: "+eventName;
+		this.eventsListeners[eventName].push(listener);
+	},
+	
+	unlisten: function(eventName, listener) {
+		eventName = eventName.toLowerCase();
+		if (typeof this.eventsListeners[eventName] === 'undefined')
+			throw "Unknown event: "+eventName;
+		for (var i = 0; i < this.eventsListeners[eventName].length; ++i)
+			if (this.eventsListeners[eventName][i] == listener) {
+				this.eventsListeners[eventName].splice(i,1);
+				break;
+			}
+	},
+	
+	trigger: function(eventName, eventObject) {
+		if (!this.eventsListeners) return; // destroyed
+		eventName = eventName.toLowerCase();
+		if (typeof this.eventsListeners[eventName] === 'undefined')
+			throw "Unknown event: "+eventName;
+		lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
+		lc.Callback.callListeners(this.eventsListeners[eventName], eventObject);
+	},
+	
+	hasEvent: function(eventName) {
+		eventName = eventName.toLowerCase();
+		return typeof this.eventsListeners[eventName] != 'undefined';
+	},
+	
+	destroy: function() {
+		this.eventsListeners = null;
+	}
+});

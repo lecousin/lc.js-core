@@ -56,7 +56,12 @@ lc.core.namespace("lc.html.processor", {
 	
 });
 
-lc.core.createClass("lc.html.processor.Status", {
+lc.core.createClass("lc.html.processor.Status", function(rootElement) {
+	
+	this._elements = [new lc.html.processor.ElementStatus(rootElement, this)];
+	this.result = new lc.async.Future();
+	
+}, {
 	
 	interrupt: function() {
 		this._state = lc.html.processor.STATE_INTERRUPTED;
@@ -135,14 +140,19 @@ lc.core.createClass("lc.html.processor.Status", {
 		}
 	}
 	
-}, function(rootElement) {
-	
-	this._elements = [new lc.html.processor.ElementStatus(rootElement, this)];
-	this.result = new lc.async.Future();
-	
 });
 
-lc.core.createClass("lc.html.processor.ElementStatus", {
+lc.core.createClass("lc.html.processor.ElementStatus", function(element, mainStatus) {
+	
+	this.element = element;
+	this._mainStatus = mainStatus;
+	this._state = lc.html.processor.STATE_RUNNING;
+	this._preprocessors = lc.html.processor._preprocessors.splice();
+	this._children = undefined;
+	this._postprocessors = undefined;
+	this.result = new lc.async.Future();
+	
+}, {
 	
 	interrupt: function() {
 		this._state = lc.html.processor.STATE_INTERRUPTED;
@@ -156,16 +166,6 @@ lc.core.createClass("lc.html.processor.ElementStatus", {
 		this._state = lc.html.processor.STATE_RUNNING;
 		this._mainStatus._continueProcessing();
 	}
-	
-}, function(element, mainStatus) {
-	
-	this.element = element;
-	this._mainStatus = mainStatus;
-	this._state = lc.html.processor.STATE_RUNNING;
-	this._preprocessors = lc.html.processor._preprocessors.splice();
-	this._children = undefined;
-	this._postprocessors = undefined;
-	this.result = new lc.async.Future();
 	
 });
 

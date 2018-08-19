@@ -23,7 +23,7 @@ lc.core = {
 	
 	// classes
 	
-	createClass: function(name, proto, ctor) {
+	createClass: function(name, ctor, proto) {
 		var names = name.split(".");
 		var ns = window;
 		for (var i = 0; i < names.length - 1; ++i) {
@@ -39,7 +39,7 @@ lc.core = {
 		return parent[cname];
 	},
 	
-	extendClass: function(name, proto, ctor, parents) {
+	extendClass: function(name, parents, ctor, proto) {
 		var names = name.split(".");
 		var ns = window;
 		for (var i = 0; i < names.length - 1; ++i) {
@@ -220,7 +220,12 @@ XMLHttpRequest.prototype.send = function(body) {
 	// TODO lc.ajax.pending(this);
 	window._lc_ajax_XMLHttpRequest_send(body);
 }
-lc.core.createClass("lc.async.Callback", {
+lc.core.createClass("lc.async.Callback", function(objThis, fct, firstArgs) {
+	// Callback constructor
+	this._this = objThis;
+	this._fct = fct;
+	this._args = firstArgs;
+}, {
 	
 	call: function() {
 		var args = [];
@@ -247,11 +252,6 @@ lc.core.createClass("lc.async.Callback", {
 		};
 	}
 	
-}, function(objThis, fct, firstArgs) {
-	// Callback constructor
-	this._this = objThis;
-	this._fct = fct;
-	this._args = firstArgs;
 });
 
 lc.async.Callback.callListeners = function(listeners, args) {
@@ -280,7 +280,12 @@ lc.async.Callback.from = function(callback) {
 };
 
 
-lc.core.createClass("lc.async.Future", {
+lc.core.createClass("lc.async.Future", function() {
+	// Future constructor
+	this._successListeners = [];
+	this._errorListeners = [];
+	this._doneListeners = [];
+}, {
 	
 	_done: false,
 	_result: undefined,
@@ -360,14 +365,14 @@ lc.core.createClass("lc.async.Future", {
 		this._errorListeners = null;
 	}
 	
-}, function() {
-	// Future constructor
-	this._successListeners = [];
-	this._errorListeners = [];
-	this._doneListeners = [];
 });
 
-lc.core.extendClass("lc.async.JoinPoint", {
+lc.core.extendClass("lc.async.JoinPoint", lc.async.Future, function() {
+	// JoinPoint constructor
+	lc.async.Future.call(this);
+	this._remaining = 0;
+	this._started = false;
+}, {
 	
 	addToJoin: function(toJoin) {
 		if (typeof toJoin === 'number')
@@ -399,14 +404,17 @@ lc.core.extendClass("lc.async.JoinPoint", {
 			this.success(null);
 	}
 
-}, function() {
-	// JoinPoint constructor
-	lc.async.Future.call(this);
-	this._remaining = 0;
-	this._started = false;
-}, lc.async.Future);
+});
 
-lc.core.createClass("lc.Cache", {
+lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) {
+	this._timeout = itemTimeout;
+	this._onrelease = onrelease;
+	if (itemTimeout > 0) {
+		if (checkInterval <= 0) checkInterval = 30000;
+		var that = this;
+		this._interval = setInterval(function() { that._checkTimeout(); }, checkInterval);
+	}
+}, {
 	
 	_items: new Map(),
 	
@@ -460,14 +468,6 @@ lc.core.createClass("lc.Cache", {
 		});
 	}
 	
-}, function(itemTimeout, onrelease, checkInterval) {
-	this._timeout = itemTimeout;
-	this._onrelease = onrelease;
-	if (itemTimeout > 0) {
-		if (checkInterval <= 0) checkInterval = 30000;
-		var that = this;
-		this._interval = setInterval(function() { that._checkTimeout(); }, checkInterval);
-	}
 });
 lc.core.namespace("lc.cookies", {
 	
@@ -587,6 +587,152 @@ lc.core.namespace("lc.events", {
 	}
 	
 });
+
+lc.core.createClass("lc.events.Producer", function() {
+	if (this.eventsListeners) return; // already initialized
+	this.eventsListeners = {};
+	this.listen = this.on; // alias
+}, {
+
+	registerEvent: function(eventName) {
+		eventName = eventName.toLowerCase();
+		this.eventsListeners[eventName] = [];
+	},
+	
+	registerEvents: function(eventsNames) {
+		for (var i = 0; i < eventsNames.length; ++i)
+			this.eventsListeners[eventsNames[i].toLowerCase()] = [];
+	},
+	
+	unregisterEvents: function(eventsNames) {
+		for (var i = 0; i < eventsNames.length; ++i)
+			delete this.eventsListeners[eventsNames[i].toLowerCase()];
+	},
+	
+	on: function(eventName, listener) {
+		eventName = eventName.toLowerCase();
+		if (typeof this.eventsListeners[eventName] === 'undefined')
+			throw "Unknown event: "+eventName;
+		this.eventsListeners[eventName].push(listener);
+	},
+	
+	unlisten: function(eventName, listener) {
+		eventName = eventName.toLowerCase();
+		if (typeof this.eventsListeners[eventName] === 'undefined')
+			throw "Unknown event: "+eventName;
+		for (var i = 0; i < this.eventsListeners[eventName].length; ++i)
+			if (this.eventsListeners[eventName][i] == listener) {
+				this.eventsListeners[eventName].splice(i,1);
+				break;
+			}
+	},
+	
+	trigger: function(eventName, eventObject) {
+		if (!this.eventsListeners) return; // destroyed
+		eventName = eventName.toLowerCase();
+		if (typeof this.eventsListeners[eventName] === 'undefined')
+			throw "Unknown event: "+eventName;
+		lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
+		lc.Callback.callListeners(this.eventsListeners[eventName], eventObject);
+	},
+	
+	hasEvent: function(eventName) {
+		eventName = eventName.toLowerCase();
+		return typeof this.eventsListeners[eventName] != 'undefined';
+	},
+	
+	destroy: function() {
+		this.eventsListeners = null;
+	}
+});
+lc.core.createClass("lc.Extendable", function() {
+	if (this.extensions !== null) return; // already initialized
+	this.extensions = [];
+	lc.Extension.Registry.detect(this);
+	this.extensions.sort(function(f1,f2) { return f2.priority - f1.priority; });
+}, {
+	extensions: null,
+	
+	addExtension: function(extension) {
+		if (this.getExtension(extension) != null) return;
+		extension = new extension();
+		this.extensions.push(extension);
+		extension.init(this);
+		this.extensionAdded(extension);
+	},
+	
+	extensionAdded: function(extension) {},
+	
+	removeExtension: function(extension) {
+		var found = false;
+		if (typeof extension === 'function') {
+			for (var i = 0; i < this.extensions.length; ++i)
+				if (lc.core.instanceOf(this.extensions[i], extension)) {
+					extension = this.extensions[i];
+					this.extensions.splice(i,1);
+					found = true;
+					break;
+				}
+		} else {
+			for (var i = 0; i < this.extensions.length; ++i)
+				if (this.extensions[i] == extension) {
+					this.extensions.splice(i,1);
+					found = true;
+					break;
+				}
+		}
+		if (found)
+			extension.destroy(this);
+	},
+	
+	getExtension: function(extension) {
+		for (var i = 0; i < this.extensions.length; ++i)
+			if (lc.core.instanceOf(this.extensions[i], extension))
+				return this.extensions[i];
+		return null;
+	},
+	
+	callExtensions: function(method) {
+		if (!this.extensions) return; // destroyed
+		var args = Array.prototype.slice.call(arguments, 1);
+		for (var i = 0; i < this.extensions.length; ++i)
+			if (typeof this.extensions[i][method] === 'function') {
+				this.extensions[i][method].apply(this.extensions[i], args);
+				// an extension may cause the destruction
+				if (!this.extensions) return;
+			}
+	},
+	
+	destroy: function() {
+		if (!this.extensions) return;
+		for (var i = 0; i < this.extensions.length; ++i)
+			this.extensions[i].destroy(this);
+		this.extensions = null;
+	}
+});
+
+lc.core.createClass("lc.Extension", function() {
+}, {
+	priority: 0,
+	detect: function(obj) {},
+	init: function(extendable) {},
+	destroy: function(extendable) {}
+});
+
+lc.Extension.Registry = {
+	_extensions: [],
+	
+	register: function(extended, extension) {
+		this._extensions.push({extended: extended, extension: extension});
+	},
+	
+	detect: function(obj) {
+		for (var i = 0; i < this._extensions.length; ++i)
+			if (lc.core.instanceOf(obj, this._extensions[i].extended))
+				if (this._extensions[i].extension.prototype.detect(obj))
+					obj.addExtension(this._extensions[i].extension);
+	}
+};
 lc.core.namespace("lc.html", {
 	
 	walkChildren: function(element, callback) {
@@ -697,7 +843,12 @@ lc.core.namespace("lc.html.processor", {
 	
 });
 
-lc.core.createClass("lc.html.processor.Status", {
+lc.core.createClass("lc.html.processor.Status", function(rootElement) {
+	
+	this._elements = [new lc.html.processor.ElementStatus(rootElement, this)];
+	this.result = new lc.async.Future();
+	
+}, {
 	
 	interrupt: function() {
 		this._state = lc.html.processor.STATE_INTERRUPTED;
@@ -776,14 +927,19 @@ lc.core.createClass("lc.html.processor.Status", {
 		}
 	}
 	
-}, function(rootElement) {
-	
-	this._elements = [new lc.html.processor.ElementStatus(rootElement, this)];
-	this.result = new lc.async.Future();
-	
 });
 
-lc.core.createClass("lc.html.processor.ElementStatus", {
+lc.core.createClass("lc.html.processor.ElementStatus", function(element, mainStatus) {
+	
+	this.element = element;
+	this._mainStatus = mainStatus;
+	this._state = lc.html.processor.STATE_RUNNING;
+	this._preprocessors = lc.html.processor._preprocessors.splice();
+	this._children = undefined;
+	this._postprocessors = undefined;
+	this.result = new lc.async.Future();
+	
+}, {
 	
 	interrupt: function() {
 		this._state = lc.html.processor.STATE_INTERRUPTED;
@@ -798,23 +954,17 @@ lc.core.createClass("lc.html.processor.ElementStatus", {
 		this._mainStatus._continueProcessing();
 	}
 	
-}, function(element, mainStatus) {
-	
-	this.element = element;
-	this._mainStatus = mainStatus;
-	this._state = lc.html.processor.STATE_RUNNING;
-	this._preprocessors = lc.html.processor._preprocessors.splice();
-	this._children = undefined;
-	this._postprocessors = undefined;
-	this.result = new lc.async.Future();
-	
 });
 
 lc.events.registerCustomEvent("processed", function(element, listener) {});
 
 // Handle layout change
 
-lc.core.createClass("lc.layout.Handler", {
+lc.core.createClass("lc.layout.Handler", function(element) {
+	element._lc_layout_handler = this;
+	this._listeners = [];
+	this._refreshValues(element);
+}, {
 	
 	_refreshValues: function(element) {
 		this._clientWidth = element.clientWidth;
@@ -838,10 +988,6 @@ lc.core.createClass("lc.layout.Handler", {
 		}
 	}
 	
-}, function(element) {
-	element._lc_layout_handler = this;
-	this._listeners = [];
-	this._refreshValues(element);
 });
 
 lc.layout.onChange = function(element, listener) {
@@ -1013,7 +1159,27 @@ lc.core.namespace("lc.locale", {
 	
 });
 
-lc.core.createClass("lc.locale.Namespace", {
+lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
+	if (baseUrl.charAt(baseUrl.length - 1) != '/') baseUrl += '/';
+	this.name = name;
+	this.url = baseUrl + name;
+	this._content = undefined;
+	if (languages) {
+		this.languages = languages;
+		if (lc.locale._lang) this.reload();
+	} else
+		this.languages = lc.ajax.get(this.url + '.languages')
+			.onsuccess(new lc.async.Callback(this, function(content) {
+				var s = content.split(",");
+				var list = [];
+				for (var i = 0; i < s.length; ++i) {
+					var lang = s[i].trim();
+					if (lang.length > 0) list.push(lang);
+				}
+				this.languages = list;
+				if (lc.locale._lang) this.reload();
+			}));
+}, {
 	
 	reload: function() {
 		this._content = lc.ajax.get(this.url + '.' + lc.locale._lang)
@@ -1076,26 +1242,6 @@ lc.core.createClass("lc.locale.Namespace", {
 		return values;
 	}
 	
-}, function(name, baseUrl, languages) {
-	if (baseUrl.charAt(baseUrl.length - 1) != '/') baseUrl += '/';
-	this.name = name;
-	this.url = baseUrl + name;
-	this._content = undefined;
-	if (languages) {
-		this.languages = languages;
-		if (lc.locale._lang) this.reload();
-	} else
-		this.languages = lc.ajax.get(this.url + '.languages')
-			.onsuccess(new lc.async.Callback(this, function(content) {
-				var s = content.split(",");
-				var list = [];
-				for (var i = 0; i < s.length; ++i) {
-					var lang = s[i].trim();
-					if (lang.length > 0) list.push(lang);
-				}
-				this.languages = list;
-				if (lc.locale._lang) this.reload();
-			}));
 });
 
 // load user's languages
@@ -1269,29 +1415,31 @@ lc.core.namespace("lc.log", {
 	
 });
 
-lc.core.createClass("lc.log.FormatComponentString", {
+lc.core.createClass("lc.log.FormatComponentString", function(str) {
+	this.string = str;
+}, {
 	format: function(logger, level, message) {
 		return string;
 	}
-}, function(str) {
-	this.string = str;
 });
 
-lc.core.createClass("lc.log.FormatComponentTime", {
+lc.core.createClass("lc.log.FormatComponentTime", function() {
+}, {
 	format: function(logger, level, message) {
 		return new Date().toLocaleTimeString();
 	}
-}, function() {
 });
 
-lc.core.createClass("lc.log.FormatComponentDateTime", {
+lc.core.createClass("lc.log.FormatComponentDateTime", function() {
+}, {
 	format: function(logger, level, message) {
 		return new Date().toLocaleString();
 	}
-}, function() {
 });
 
-lc.core.createClass("lc.log.FormatComponentLevel", {
+lc.core.createClass("lc.log.FormatComponentLevel", function(size) {
+	this.size = size <= 0 ? 5 : size;
+}, {
 	format: function(logger, level, message) {
 		var s = "";
 		for (var name in lc.log.Levels)
@@ -1303,11 +1451,11 @@ lc.core.createClass("lc.log.FormatComponentLevel", {
 		while (s.length < this.size) s = s + ' ';
 		return s;
 	}
-}, function(size) {
-	this.size = size <= 0 ? 5 : size;
 });
 
-lc.core.createClass("lc.log.FormatComponentLogger", {
+lc.core.createClass("lc.log.FormatComponentLogger", function(size) {
+	this.size = size;
+}, {
 	format: function(logger, level, message) {
 		var s = logger;
 		if (this.size > 0) {
@@ -1316,11 +1464,11 @@ lc.core.createClass("lc.log.FormatComponentLogger", {
 		}
 		return s;
 	}
-}, function(size) {
-	this.size = size;
 });
 
-lc.core.createClass("lc.log.FormatComponentMessage", {
+lc.core.createClass("lc.log.FormatComponentMessage", function(size) {
+	this.size = size;
+}, {
 	format: function(logger, level, message) {
 		var s = "" + message;
 		if (this.size > 0) {
@@ -1329,8 +1477,6 @@ lc.core.createClass("lc.log.FormatComponentMessage", {
 		}
 		return s;
 	}
-}, function(size) {
-	this.size = size;
 });
 
 lc.log.setFormat("${time} ${level} ${logger:15} ${message}");
@@ -1520,45 +1666,7 @@ lc.core.namespace("lc.resources", {
 	}
 	
 });
-lc.core.createClass("lc.URL", {
-	
-	/** create a string representing the URL */
-	toString: function() {
-		var s;
-		if (this.protocol) {
-			s = this.protocol+"://"+this.host;
-			if (this.port) s += ":"+this.port;
-		} else
-			s = "";
-		s += this.path;
-		var first = true;
-		for (var name in this.params) {
-			if (first) { s += "?"; first = false; } else s += "&";
-			s += encodeURIComponent(name) + "=" + encodeURIComponent(this.params[name]);
-		}
-		if (this.hash)
-			s += "#"+this.hash;
-		return s;
-	},
-	
-	equals: function(url) {
-		if (!this.equalsWithoutParameters(url)) return false;
-		for (var name in this.params)
-			if (url.params[name] != this.params[name]) return false;
-		for (var name in url.params)
-			if (url.params[name] != this.params[name]) return false;
-		return true;
-	},
-	
-	equalsWithoutParameters: function(url) {
-		if (this.protocol != url.protocol) return false;
-		if (this.host != url.host) return false;
-		if (this.port != url.port) return false;
-		if (this.path != url.path) return false;
-		return true;
-	}
-
-}, function(s) {
+lc.core.createClass("lc.URL", function(s) {
 	if ((s instanceof lc.URL) || (typeof s.protocol != 'undefined')) {
 		this.protocol = s.protocol;
 		this.host = s.host;
@@ -1664,6 +1772,44 @@ lc.core.createClass("lc.URL", {
 	
 	this.host = this.host.toLowerCase();
 	this.path = this.path.toLowerCase();
+}, {
+	
+	/** create a string representing the URL */
+	toString: function() {
+		var s;
+		if (this.protocol) {
+			s = this.protocol+"://"+this.host;
+			if (this.port) s += ":"+this.port;
+		} else
+			s = "";
+		s += this.path;
+		var first = true;
+		for (var name in this.params) {
+			if (first) { s += "?"; first = false; } else s += "&";
+			s += encodeURIComponent(name) + "=" + encodeURIComponent(this.params[name]);
+		}
+		if (this.hash)
+			s += "#"+this.hash;
+		return s;
+	},
+	
+	equals: function(url) {
+		if (!this.equalsWithoutParameters(url)) return false;
+		for (var name in this.params)
+			if (url.params[name] != this.params[name]) return false;
+		for (var name in url.params)
+			if (url.params[name] != this.params[name]) return false;
+		return true;
+	},
+	
+	equalsWithoutParameters: function(url) {
+		if (this.protocol != url.protocol) return false;
+		if (this.host != url.host) return false;
+		if (this.port != url.port) return false;
+		if (this.path != url.path) return false;
+		return true;
+	}
+
 });
 
 lc.URL.decode = function(s) { return decodeURIComponent(s).replace(/\+/g, " "); }

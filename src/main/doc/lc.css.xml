@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<doc>
+	<namespace name="lc.css">
+		<description>
+			<code>lc.css</code> namespace provides utility methods to manipulate style and CSS classes.
+		</description>
+		<method name="hasClass">
+			<description>Checks if an element has a CSS class</description>
+			<param name="element" type="Element">HTML element</param>
+			<param name="className" type="string">CSS class name to search</param>
+			<return type="boolean">true if <code>element</code> has the CSS class <code>name</code></return>
+		</method>
+	</namespace>
+</doc>
