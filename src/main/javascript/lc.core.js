@@ -56,7 +56,7 @@ lc.core = {
 
 		var p = {};
 		for (var i = 0; i < parents.length; ++i) {
-			lc.merge(p, parents[i].prototype);
+			lc.core.merge(p, parents[i].prototype);
 			if (ns[cname]._lcExtends.indexOf(parents[i]) < 0)
 				ns[cname]._lcExtends.push(parents[i]._lcClass);
 			if (parents[i]._lcExtends)
@@ -64,7 +64,7 @@ lc.core = {
 					if (ns[cname]._lcExtends.indexOf(parents[i]._lcExtends[j]) < 0)
 						ns[cname]._lcExtends.push(parents[i]._lcExtends[j]);
 		}
-		ns[cname].prototype = lc.merge(proto, p);
+		ns[cname].prototype = lc.core.merge(proto, p);
 		ns[cname].prototype.constructor = ctor;
 		return ns[cname];
 	},
