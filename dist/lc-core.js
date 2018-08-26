@@ -256,13 +256,35 @@ XMLHttpRequest.prototype.send = function(body) {
 	// TODO lc.ajax.pending(this);
 	window._lc_ajax_XMLHttpRequest_send.apply(this, [body]);
 }
-lc.core.createClass("lc.async.Callback", function(objThis, fct, firstArgs) {
+/**
+ * @namespace lc.async
+ * <code>lc.async</code> namespace provides functionalities for asynchronous programming.
+ */
+
+/**
+ * @class lc.async.Callback
+ * TODO
+ */
+
+lc.core.createClass("lc.async.Callback",
+/**
+ * @constructor
+ * @param objThis object <code>this</code> for the callback
+ * @param fct function the function to be called
+ * @param firstArgs array optional. First arguments to be passed to the function
+ */
+function(objThis, fct, firstArgs) {
 	// Callback constructor
 	this._this = objThis;
 	this._fct = fct;
 	this._args = firstArgs;
 }, {
 	
+	/**
+	 * Call the function with given arguments
+	 * @param ... Array:any List of arguments
+	 * @returns any the value returned by this callback
+	 */
 	call: function() {
 		var args = [];
 		for (var i = 0; i < arguments.length; ++i)
@@ -307,6 +329,14 @@ lc.async.Callback.callListeners = function(listeners, args) {
 	}
 };
 
+/**
+ * Creates a Callback from the given argument.<br/>
+ * If a function is given, a Callback with the window as <code>this</code> object is created.<br/>
+ * If a Callback is given, returns it.
+ * @param callback function|lc.async.Callback to be converted into a Callback
+ * @returns lc.async.Callback a Callback
+ * @throws if the given argument is not supported
+ */
 lc.async.Callback.from = function(callback) {
 	if (typeof listeners[i] === 'function')
 		return new lc.async.Callback(window, callback);
@@ -316,6 +346,10 @@ lc.async.Callback.from = function(callback) {
 };
 
 
+/**
+ * @class lc.async.Future
+ * TODO description
+ */
 lc.core.createClass("lc.async.Future", function() {
 	// Future constructor
 	this._successListeners = [];
@@ -403,6 +437,11 @@ lc.core.createClass("lc.async.Future", function() {
 	
 });
 
+/**
+ * @class lc.async.JoinPoint
+ * TODO description
+ * @extends lc.async.Future
+ */
 lc.core.extendClass("lc.async.JoinPoint", lc.async.Future, function() {
 	// JoinPoint constructor
 	lc.async.Future.call(this);
@@ -681,6 +720,11 @@ lc.core.createClass("lc.events.Producer", function() {
 		this.eventsListeners = null;
 	}
 });
+/**
+ * @class lc.Extendable
+ * This class is made to be extended by other classes, to add support of extensions (or plug-ins).<br/>
+ * Extensions can be added programmatically, or automatically detected throught the lc.Extension declared in the lc.Extension.Registry.
+ */
 lc.core.createClass("lc.Extendable", function() {
 	if (this.extensions !== null) return; // already initialized
 	this.extensions = [];
@@ -1672,7 +1716,16 @@ lc.core.namespace("lc.resources", {
 	}
 	
 });
-lc.core.createClass("lc.URL", function(s) {
+/**
+ * @class lc.URL
+ * Represents an URL decomposed into protocol, host, port, path, hash and params.
+ */
+lc.core.createClass("lc.URL",
+/**
+ * @constructor Parse the given string
+ * @param s string|lc.URL the URL to parse (if a string) or to copy (if already an instance of lc.URL)
+ */
+function(s) {
 	if ((s instanceof lc.URL) || (typeof s.protocol != 'undefined')) {
 		this.protocol = s.protocol;
 		this.host = s.host;
@@ -1687,20 +1740,16 @@ lc.core.createClass("lc.URL", function(s) {
 	
 	var i = s.indexOf("://");
 	if (i > 0) {
-		/** the protocol of the URL (i.e. http) */
 		this.protocol = s.substr(0, i).toLowerCase();
 		s = s.substr(i+3);
 		i = s.indexOf("/");
-		/** the hostname (i.e. www.google.com) */
 		this.host = s.substr(0,i);
 		s = s.substr(i);
 		i = this.host.indexOf(":");
 		if (i > 0) {
-			/** the port number (i.e. 80) */
 			this.port = this.host.substr(i+1);
 			this.host = this.host.substr(0,i);
 		} else
-			/** the port number (i.e. 80) */
 			this.port = null;
 	} else {
 		if (window) {
@@ -1733,15 +1782,12 @@ lc.core.createClass("lc.URL", function(s) {
 	}
 	i = s.indexOf('#');
 	if (i > 0) {
-		/** the anchor */
 		this.hash = s.substr(i+1);
 		s = s.substr(0,i);
 	}
 	i = s.indexOf('?');
-	/** the parameters of the URL (i.e. path?param1=value1&param2=value2 will create an object with 2 attributes) */
 	this.params = new Object();
 	if (i > 0) {
-		/** the path of the resource pointed by this URL */
 		this.path = s.substr(0,i);
 		s = s.substr(i+1);
 		while (s.length > 0 && (i = s.indexOf('&')) >= 0) {
@@ -1779,8 +1825,20 @@ lc.core.createClass("lc.URL", function(s) {
 	this.host = this.host.toLowerCase();
 	this.path = this.path.toLowerCase();
 }, {
+	/** string the protocol of the URL (i.e. http) */
+	protocol: null,
+	/** string the hostname (i.e. www.google.com) */
+	host: null,
+	/** number the port number (i.e. 80) */
+	port: null,
+	/** string the path of the resource pointed by this URL */
+	path: null,
+	/** string the anchor */
+	hash: null,
+	/** Object the parameters of the URL (i.e. path?param1=value1&param2=value2 will create an object with 2 attributes) */
+	params: null,
 	
-	/** create a string representing the URL */
+	/** Returns a string from this URL */
 	toString: function() {
 		var s;
 		if (this.protocol) {

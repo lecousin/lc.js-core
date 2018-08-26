@@ -1,10 +1,32 @@
-lc.core.createClass("lc.async.Callback", function(objThis, fct, firstArgs) {
+/**
+ * @namespace lc.async
+ * <code>lc.async</code> namespace provides functionalities for asynchronous programming.
+ */
+
+/**
+ * @class lc.async.Callback
+ * TODO
+ */
+
+lc.core.createClass("lc.async.Callback",
+/**
+ * @constructor
+ * @param objThis object <code>this</code> for the callback
+ * @param fct function the function to be called
+ * @param firstArgs array optional. First arguments to be passed to the function
+ */
+function(objThis, fct, firstArgs) {
 	// Callback constructor
 	this._this = objThis;
 	this._fct = fct;
 	this._args = firstArgs;
 }, {
 	
+	/**
+	 * Call the function with given arguments
+	 * @param ... Array:any List of arguments
+	 * @returns any the value returned by this callback
+	 */
 	call: function() {
 		var args = [];
 		for (var i = 0; i < arguments.length; ++i)
@@ -49,6 +71,14 @@ lc.async.Callback.callListeners = function(listeners, args) {
 	}
 };
 
+/**
+ * Creates a Callback from the given argument.<br/>
+ * If a function is given, a Callback with the window as <code>this</code> object is created.<br/>
+ * If a Callback is given, returns it.
+ * @param callback function|lc.async.Callback to be converted into a Callback
+ * @returns lc.async.Callback a Callback
+ * @throws if the given argument is not supported
+ */
 lc.async.Callback.from = function(callback) {
 	if (typeof listeners[i] === 'function')
 		return new lc.async.Callback(window, callback);
@@ -58,6 +88,10 @@ lc.async.Callback.from = function(callback) {
 };
 
 
+/**
+ * @class lc.async.Future
+ * TODO description
+ */
 lc.core.createClass("lc.async.Future", function() {
 	// Future constructor
 	this._successListeners = [];
@@ -145,6 +179,11 @@ lc.core.createClass("lc.async.Future", function() {
 	
 });
 
+/**
+ * @class lc.async.JoinPoint
+ * TODO description
+ * @extends lc.async.Future
+ */
 lc.core.extendClass("lc.async.JoinPoint", lc.async.Future, function() {
 	// JoinPoint constructor
 	lc.async.Future.call(this);

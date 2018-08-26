@@ -1,4 +1,13 @@
-lc.core.createClass("lc.URL", function(s) {
+/**
+ * @class lc.URL
+ * Represents an URL decomposed into protocol, host, port, path, hash and params.
+ */
+lc.core.createClass("lc.URL",
+/**
+ * @constructor Parse the given string
+ * @param s string|lc.URL the URL to parse (if a string) or to copy (if already an instance of lc.URL)
+ */
+function(s) {
 	if ((s instanceof lc.URL) || (typeof s.protocol != 'undefined')) {
 		this.protocol = s.protocol;
 		this.host = s.host;
@@ -13,20 +22,16 @@ lc.core.createClass("lc.URL", function(s) {
 	
 	var i = s.indexOf("://");
 	if (i > 0) {
-		/** the protocol of the URL (i.e. http) */
 		this.protocol = s.substr(0, i).toLowerCase();
 		s = s.substr(i+3);
 		i = s.indexOf("/");
-		/** the hostname (i.e. www.google.com) */
 		this.host = s.substr(0,i);
 		s = s.substr(i);
 		i = this.host.indexOf(":");
 		if (i > 0) {
-			/** the port number (i.e. 80) */
 			this.port = this.host.substr(i+1);
 			this.host = this.host.substr(0,i);
 		} else
-			/** the port number (i.e. 80) */
 			this.port = null;
 	} else {
 		if (window) {
@@ -59,15 +64,12 @@ lc.core.createClass("lc.URL", function(s) {
 	}
 	i = s.indexOf('#');
 	if (i > 0) {
-		/** the anchor */
 		this.hash = s.substr(i+1);
 		s = s.substr(0,i);
 	}
 	i = s.indexOf('?');
-	/** the parameters of the URL (i.e. path?param1=value1&param2=value2 will create an object with 2 attributes) */
 	this.params = new Object();
 	if (i > 0) {
-		/** the path of the resource pointed by this URL */
 		this.path = s.substr(0,i);
 		s = s.substr(i+1);
 		while (s.length > 0 && (i = s.indexOf('&')) >= 0) {
@@ -105,8 +107,20 @@ lc.core.createClass("lc.URL", function(s) {
 	this.host = this.host.toLowerCase();
 	this.path = this.path.toLowerCase();
 }, {
+	/** string the protocol of the URL (i.e. http) */
+	protocol: null,
+	/** string the hostname (i.e. www.google.com) */
+	host: null,
+	/** number the port number (i.e. 80) */
+	port: null,
+	/** string the path of the resource pointed by this URL */
+	path: null,
+	/** string the anchor */
+	hash: null,
+	/** Object the parameters of the URL (i.e. path?param1=value1&param2=value2 will create an object with 2 attributes) */
+	params: null,
 	
-	/** create a string representing the URL */
+	/** Returns a string from this URL */
 	toString: function() {
 		var s;
 		if (this.protocol) {

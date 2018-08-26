@@ -1,3 +1,8 @@
+/**
+ * @class lc.Extendable
+ * This class is made to be extended by other classes, to add support of extensions (or plug-ins).<br/>
+ * Extensions can be added programmatically, or automatically detected throught the lc.Extension declared in the lc.Extension.Registry.
+ */
 lc.core.createClass("lc.Extendable", function() {
 	if (this.extensions !== null) return; // already initialized
 	this.extensions = [];

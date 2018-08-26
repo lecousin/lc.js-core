@@ -1,2 +1,0 @@
-lc.async.xml
-lc.css.xml
