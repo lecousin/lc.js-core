@@ -60,7 +60,7 @@ lc.core.namespace("lc.locale", {
 		for (var i = 0; i < lc.locale._namespaces.length; ++i) {
 			var ns = lc.locale._namespaces[i];
 			if (Array.isArray(ns.languages)) {
-				if (langs == null) langs = ns.languages.splice();
+				if (langs == null) langs = ns.languages.slice();
 				else for (var i = 0; i < langs.length; ++i)
 					if (ns.languages.indexOf(langs[i]) < 0) {
 						langs.splice(i,1);
@@ -69,7 +69,7 @@ lc.core.namespace("lc.locale", {
 			} else {
 				jp.addToJoin(1);
 				ns.languages.onsuccess(new lc.async.Callback(ns, function() {
-					if (langs == null) langs = this.languages.splice();
+					if (langs == null) langs = this.languages.slice();
 					else for (var i = 0; i < langs.length; ++i)
 						if (this.languages.indexOf(langs[i]) < 0) {
 							langs.splice(i,1);
@@ -80,7 +80,7 @@ lc.core.namespace("lc.locale", {
 			}
 		}
 		jp.start();
-		jp.onsuccess(function() { result.success(langs); });
+		jp.onsuccess(function() { if (langs === null) langs = []; result.success(langs); });
 		return result;
 	},
 
@@ -144,7 +144,7 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 		this.languages = languages;
 		if (lc.locale._lang) this.reload();
 	} else
-		this.languages = lc.ajax.get(this.url + '.languages')
+		this.languages = lc.http.get(this.url + '.languages')
 			.onsuccess(new lc.async.Callback(this, function(content) {
 				var s = content.split(",");
 				var list = [];
@@ -158,7 +158,7 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 }, {
 	
 	reload: function() {
-		this._content = lc.ajax.get(this.url + '.' + lc.locale._lang)
+		this._content = lc.http.get(this.url + '.' + lc.locale._lang)
 			.onsuccess(new lc.async.Callback(this, function(content) {
 				this._content = this._parse(content);
 			}));

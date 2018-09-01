@@ -14,7 +14,7 @@ lc.core.namespace("lc.events", {
 		if (element._eventListeners) {
 			for (var i = 0; i < element._eventListeners.length; ++i) {
 				if (element._eventListeners[i].eventType == eventType)
-					lc.Callback.callListeners(element._eventListeners[i].listener, args);
+					lc.async.Callback.callListeners(element._eventListeners[i].listener, args);
 			}
 		}
 	},
@@ -24,7 +24,7 @@ lc.core.namespace("lc.events", {
 		if (!element._eventListeners)
 			element._eventListeners = [];
 		if (typeof listener === 'function')
-			listener = new lc.Callback(listener, element); // use element as this object
+			listener = new lc.async.Callback(element, listener); // use element as this object
 		var e = {
 			eventType: eventType,
 			listener: listener
@@ -60,7 +60,7 @@ lc.core.namespace("lc.events", {
 			element._eventListeners = null;
 			for (var i = 0; i < listeners.length; ++i) {
 				if (listeners[i].eventType === 'destroy') {
-					lc.Callback.callListeners(listeners[i].listener);
+					lc.async.Callback.callListeners(listeners[i].listener);
 				} else if (typeof lc.events._customEvents[listeners[i].eventType] === 'undefined')
 					element.removeEventListener(listeners[i].eventType, listeners[i].listener._fct);
 				listeners[i].listener = null;
@@ -118,7 +118,7 @@ lc.core.createClass("lc.events.Producer", function() {
 		if (typeof this.eventsListeners[eventName] === 'undefined')
 			throw "Unknown event: "+eventName;
 		lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
-		lc.Callback.callListeners(this.eventsListeners[eventName], eventObject);
+		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
 	},
 	
 	hasEvent: function(eventName) {

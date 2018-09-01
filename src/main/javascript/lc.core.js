@@ -64,7 +64,10 @@ lc.core = {
 					if (ns[cname]._lcExtends.indexOf(parents[i]._lcExtends[j]) < 0)
 						ns[cname]._lcExtends.push(parents[i]._lcExtends[j]);
 		}
-		ns[cname].prototype = lc.core.merge(proto, p);
+		for (var n in p)
+			if (typeof proto[n] === 'undefined')
+				proto[n] = p[n];
+		ns[cname].prototype = proto;
 		ns[cname].prototype.constructor = ctor;
 		return ns[cname];
 	},
@@ -101,6 +104,10 @@ lc.core = {
 				return ctor.displayName;
 		}
 		return "[unknown]";
+	},
+	
+	className: function(ctor) {
+		return ctor._lcClass;
 	},
 	
 	// Id generator

@@ -1,17 +1,54 @@
+/**
+ * @namespace lc.log
+ * Logging utilities with log formatters.
+ * TODO describe more
+ */
 lc.core.namespace("lc.log", {
 	
+	/**
+	 * @namespace lc.log.Levels
+	 * Logging levels enumeration.
+	 */
 	Levels: {
+		/** number Most verbose level. */
 		TRACE: 0,
+		/** number Debugging information. */
 		DEBUG: 1,
+		/** number Information. */
 		INFO: 2,
+		/** number Warning. */
 		WARN: 3,
+		/** number Error. */
 		ERROR: 4
+	},
+	
+	/**
+	 * @namespace lc.log.formatters
+	 * Log formatters.
+	 */
+	formatters: {
+		_registry: {},
+		
+		register: function(name, classname) {
+			lc.log.formatters._registry[name] = classname;
+		},
+		
+		create: function(name, argument) {
+			if (typeof lc.log.formatters._registry[name] === 'undefined')
+				throw "Unknown log formatter: " + name;
+			return new Function("argument", "return new " + lc.log.formatters._registry[name] + "(argument)")(argument);
+		}
 	},
 	
 	_formatComponents: [],
 	_defaultLevel: 2,
 	_loggerLevel: {},
 	
+	/**
+	 * Configure the format of log lines.
+	 * TODO explain format
+	 * @param format string format specification
+	 */
 	setFormat: function(format) {
 		var components = [];
 		var pos = 0;
@@ -21,39 +58,20 @@ lc.core.namespace("lc.log", {
 				var j = format.indexOf("}", i + 2);
 				if (j > 0) {
 					if (i > pos)
-						components.push(new lc.log.FormatComponentString(format.substr(pos, i)));
+						components.push(new lc.log.formatters.String(format.substring(pos, i)));
 					pos = j + 1;
 					var s = format.substring(i + 2, j);
-					var size = -1;
+					var argument = null;
 					i = s.indexOf(':');
 					if (i > 0) {
+						argument = s.substring(i + 1);
 						s = s.substring(0, i);
-						size = parseInt(s.substring(i + 1));
 					}
-					if (s == "time") {
-						components.push(new lc.log.FormatComponentTime());
-						continue;
-					}
-					if (s == "datetime") {
-						components.push(new lc.log.FormatComponentDateTime());
-						continue;
-					}
-					if (s == "level") {
-						components.push(new lc.log.FormatComponentLevel(size));
-						continue;
-					}
-					if (s == "logger") {
-						components.push(new lc.log.FormatComponentLogger(size));
-						continue;
-					}
-					if (s == "message") {
-						components.push(new lc.log.FormatComponentMessage(size));
-						continue;
-					}
+					components.push(lc.log.formatters.create(s, argument));
+					continue;
 				}
-				
 			}
-			components.push(new lc.log.FormatComponentString(format.substr(pos)));
+			components.push(new lc.log.formatters.String(format.substring(pos)));
 			break;
 		}
 		lc.log._formatComponents = components;
@@ -70,7 +88,7 @@ lc.core.namespace("lc.log", {
 	},
 	
 	log: function(logger, level, message, exception) {
-		if (message.stack)
+		if (message && message.stack)
 			message = "" + message + "\n" + message.stack;
 		if (exception)
 			message = message + "\n" + exception.stack;
@@ -125,11 +143,39 @@ lc.core.namespace("lc.log", {
 	
 	error: function(logger, message, exception) {
 		return lc.log.log(logger, lc.log.Levels.ERROR, message, exception);
+	},
+	
+	fitStringSize: function(s, size) {
+		if (size > 0) {
+			if (s.length > size) {
+				var half = Math.floor((size - 3) / 2);
+				s = s.substring(0, half) + "..." + s.substring(s.length - (size - 3 - half));
+			}
+			while (s.length < size) s = s + ' ';
+		}
+		return s;
 	}
 	
 });
 
-lc.core.createClass("lc.log.FormatComponentString", function(str) {
+/**
+ * @class lc.log.formatters.Formatter
+ * Abstract class for a log formatter.
+ * The method format must be implemented.
+ * It is not necessary to call the constructor of this abstract class as it is empty.
+ */
+lc.core.createClass("lc.log.formatters.Formatter", function() {}, {
+	format: function(logger, level, message) {
+		throw "Method lc.log.formatters.Formatter.format(logger, level, message) must be implemented on " + lc.core.typeOf(this);
+	}
+});
+
+/**
+ * @class lc.log.formatters.String
+ * Default formatter that just prints a string.
+ * @extends lc.log.formatters.Formatter
+ */
+lc.core.extendClass("lc.log.formatters.String", lc.log.formatters.Formatter, function(str) {
 	this.string = str;
 }, {
 	format: function(logger, level, message) {
@@ -137,21 +183,24 @@ lc.core.createClass("lc.log.FormatComponentString", function(str) {
 	}
 });
 
-lc.core.createClass("lc.log.FormatComponentTime", function() {
+lc.core.extendClass("lc.log.formatters.Time", lc.log.formatters.Formatter, function() {
 }, {
 	format: function(logger, level, message) {
 		return new Date().toLocaleTimeString();
 	}
 });
+lc.log.formatters.register("time", "lc.log.formatters.Time");
 
-lc.core.createClass("lc.log.FormatComponentDateTime", function() {
+lc.core.extendClass("lc.log.formatters.DateTime", lc.log.formatters.Formatter, function() {
 }, {
 	format: function(logger, level, message) {
 		return new Date().toLocaleString();
 	}
 });
+lc.log.formatters.register("datetime", "lc.log.formatters.DateTime");
 
-lc.core.createClass("lc.log.FormatComponentLevel", function(size) {
+lc.core.extendClass("lc.log.formatters.Level", lc.log.formatters.Formatter, function(size) {
+	size = parseInt(size);
 	this.size = size <= 0 ? 5 : size;
 }, {
 	format: function(logger, level, message) {
@@ -161,36 +210,29 @@ lc.core.createClass("lc.log.FormatComponentLevel", function(size) {
 				s = name;
 				break;
 			}
-		if (s.length > this.size) s = s.substring(0, this.size);
-		while (s.length < this.size) s = s + ' ';
-		return s;
+		return lc.log.fitStringSize(s, this.size);
 	}
 });
+lc.log.formatters.register("level", "lc.log.formatters.Level");
 
-lc.core.createClass("lc.log.FormatComponentLogger", function(size) {
+lc.core.extendClass("lc.log.formatters.Logger", lc.log.formatters.Formatter, function(size) {
+	size = parseInt(size);
 	this.size = size;
 }, {
 	format: function(logger, level, message) {
-		var s = logger;
-		if (this.size > 0) {
-			if (s.length > this.size) s = s.substring(0, this.size);
-			while (s.length < this.size) s = s + ' ';
-		}
-		return s;
+		return lc.log.fitStringSize(logger, this.size);
 	}
 });
+lc.log.formatters.register("logger", "lc.log.formatters.Logger");
 
-lc.core.createClass("lc.log.FormatComponentMessage", function(size) {
+lc.core.extendClass("lc.log.formatters.Message", lc.log.formatters.Formatter, function(size) {
+	size = parseInt(size);
 	this.size = size;
 }, {
 	format: function(logger, level, message) {
-		var s = "" + message;
-		if (this.size > 0) {
-			if (s.length > this.size) s = s.substring(0, this.size);
-			while (s.length < this.size) s = s + ' ';
-		}
-		return s;
+		return lc.log.fitStringSize("" + message, this.size);
 	}
 });
+lc.log.formatters.register("message", "lc.log.formatters.Message");
 
-lc.log.setFormat("${time} ${level} ${logger:15} ${message}");
+lc.log.setFormat("${time} ${level} ${logger:20} ${message}");

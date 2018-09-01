@@ -48,7 +48,7 @@ lc.core.namespace("lc.resources", {
 		var cache = lc.resources._default_cache.get(us);
 		if (cache)
 			return cache.future;
-		var get = lc.ajax.get(url);
+		var get = lc.http.get(url);
 		cache = { future: get };
 		lc.resources._default_cache.set(us, cache);
 		return get;

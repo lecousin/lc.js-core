@@ -1,3 +1,33 @@
+/**
+ * @namespace lc.html.processor
+ * HTML processing, to automatically modify the page once loaded.
+ * <p>
+ * A processor is a callback called on each HTML element, giving the opportunity to create, modify or remove some elements on the page.<br/>
+ * A typical usage may be to replace a custom tag by a dynamic content.
+ * </p>
+ * <p>
+ * There are 2 kinds of processor: pre-processors, which are called on a element before the descendents of this element,
+ * and post-processors, called on a element once all its descendents have been processed.<br/>
+ * The difference is that a pre-processor can modify the content of an element, before this content is itself processed,
+ * while a post-processor is called after its content has been already processed.
+ * </p>
+ * <p>
+ * The processing can be interrupted or stopped by any processor.<br/>
+ * An interruption is typically useful when asynchronous events are necessary for the processing. For exemple an AJAX request to load some part of
+ * the content to create.<br/>
+ * A stop can be global or for the current element only. On an element, any future processing on this element (and its descendents in case of a pre-processor) is stopped.
+ * A global stop will stop any processing on any element.
+ * </p>
+ * <p>
+ * Each processor is associated with a priority, so the processors with higher priority are called first.
+ * </p>
+ * <p>
+ * When processing an element, processors are called with the element, an ElementStatus, and a global Status.<br/>
+ * The ElementStatus allows to stop the processing on the current element, to interrupt it, and then to resume it once everything is ready. It has also a Future object
+ * allowing to known when the element has been completely processed (all pre-processors executed, all its descendents have been processed, and all post-processors executed).<br/>
+ * The global status allows to stop globally the processing, and has also a Future object to known when the full processing have been done, or stopped.
+ * </p>
+ */
 lc.core.namespace("lc.html.processor", {
 	
 	_preprocessors: [],
@@ -63,17 +93,8 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 	
 }, {
 	
-	interrupt: function() {
-		this._state = lc.html.processor.STATE_INTERRUPTED;
-	},
-	
 	stop: function() {
 		this._state = lc.html.processor.STATE_STOPPED;
-	},
-	
-	resume: function() {
-		this._state = lc.html.processor.STATE_RUNNING;
-		this._continueProcessing();
 	},
 	
 	_state: lc.html.processor.STATE_RUNNING,
@@ -126,7 +147,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 			}
 			// running - postprocessors
 			if (e._postprocessors === undefined)
-				e._postprocessors = lc.html.processor._postprocessors.splice();
+				e._postprocessors = lc.html.processor._postprocessors.slice();
 			if (e._postprocessors.length > 0) {
 				var processor = e._postprocessors[0];
 				e._postprocessors.splice(0, 1);
@@ -147,7 +168,7 @@ lc.core.createClass("lc.html.processor.ElementStatus", function(element, mainSta
 	this.element = element;
 	this._mainStatus = mainStatus;
 	this._state = lc.html.processor.STATE_RUNNING;
-	this._preprocessors = lc.html.processor._preprocessors.splice();
+	this._preprocessors = lc.html.processor._preprocessors.slice();
 	this._children = undefined;
 	this._postprocessors = undefined;
 	this.result = new lc.async.Future();

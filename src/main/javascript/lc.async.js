@@ -1,6 +1,6 @@
 /**
  * @namespace lc.async
- * <code>lc.async</code> namespace provides functionalities for asynchronous programming.
+ * Provides functionalities for asynchronous programming.
  */
 
 /**
@@ -56,11 +56,12 @@ function(objThis, fct, firstArgs) {
 
 lc.async.Callback.callListeners = function(listeners, args) {
 	if (!Array.isArray(listeners)) listeners = [listeners];
+	else listeners = listeners.slice();
 	if (typeof args === 'undefined') args = [];
 	for (var i = 0; i < listeners.length; ++i) {
 		try {
 			if (typeof listeners[i] === 'function')
-				listeners[i](args);
+				listeners[i].apply(null, args);
 			else if (lc.core.instanceOf(listeners[i], lc.async.Callback))
 				listeners[i].apply(args);
 			else

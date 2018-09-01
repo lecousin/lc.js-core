@@ -120,7 +120,9 @@ function(s) {
 	/** Object the parameters of the URL (i.e. path?param1=value1&param2=value2 will create an object with 2 attributes) */
 	params: null,
 	
-	/** Returns a string from this URL */
+	/** Returns a string from this URL.
+	 * @returns string the URL as a string
+	 */
 	toString: function() {
 		var s;
 		if (this.protocol) {

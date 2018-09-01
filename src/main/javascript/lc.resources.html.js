@@ -12,7 +12,7 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 		cache = { url: u, html: null, future: new lc.async.Future() };
 		lc.resources._html_cache.set(us, cache);
 		
-		lc.ajax.get(us)
+		lc.http.get(us)
 			.onsuccess(function(html) {
 				cache.html = html;
 				cache.future.success(html);

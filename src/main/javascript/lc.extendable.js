@@ -81,6 +81,8 @@ lc.Extension.Registry = {
 	_extensions: [],
 	
 	register: function(extended, extension) {
+		if (lc.log.trace("lc.Extension"))
+			lc.log.trace("lc.Extension", "Extension registered: " + lc.core.className(extension) + " extending " + lc.core.className(extended));
 		this._extensions.push({extended: extended, extension: extension});
 	},
 	

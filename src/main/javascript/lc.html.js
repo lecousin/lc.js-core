@@ -1,5 +1,15 @@
+/**
+ * @namespace lc.html
+ * Utility methods to manipulate HTML.
+ */
 lc.core.namespace("lc.html", {
 	
+	/**
+	 * Go through the DOM elements (node type 1) starting from the given element, and call the callback on each of its descendent.
+	 * If the callback returns true on an element, its children won't be visited.
+	 * @param element Element the element to start, the callback is not called on it but on its children and descendents.
+	 * @param callback function|lc.async.Callback the callback to call on each element, taking the element as single argument.
+	 */
 	walkChildren: function(element, callback) {
 		for (var i = 0; i < element.childNodes.length; ++i) {
 			if (lc.Callback.from(callback).call(element.childNodes[i])) continue;

@@ -12,6 +12,7 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 		var s = document.createElement("SCRIPT");
 		js = { url: u, element: s, future: new lc.async.Future() };
 		lc.resources._js_cache.set(us, js);
+		lc.app.pending(js.future);
 		s.type = "text/javascript";
 		s.onload = function() {
 			lc.log.debug("lc.resources", "Javascript loaded: "+us);

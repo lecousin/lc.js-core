@@ -14,6 +14,7 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 		css.type = "text/css";
 		cache = { url: u, element: css, future: new lc.async.Future() };
 		lc.resources._css_cache.set(us, cache);
+		lc.app.pending(cache.future);
 		css.onload = function() {
 			lc.log.debug("lc.resources", "CSS loaded: "+us);
 			cache.future.success(css);
