@@ -82,11 +82,13 @@ lc.core.createClass("lc.events.Producer", function() {
 	registerEvent: function(eventName) {
 		eventName = eventName.toLowerCase();
 		this.eventsListeners[eventName] = [];
+		if (lc.log.trace("lc.events.Producer"))
+			lc.log.trace("lc.events.Producer", "Event registered: " + eventName);
 	},
 	
 	registerEvents: function(eventsNames) {
 		for (var i = 0; i < eventsNames.length; ++i)
-			this.eventsListeners[eventsNames[i].toLowerCase()] = [];
+			this.registerEvent(eventsNames[i]);
 	},
 	
 	unregisterEvents: function(eventsNames) {
@@ -117,7 +119,8 @@ lc.core.createClass("lc.events.Producer", function() {
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
 			throw "Unknown event: "+eventName;
-		lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
+		if (lc.log.debug("lc.events.Producer"))
+			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
 		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
 	},
 	

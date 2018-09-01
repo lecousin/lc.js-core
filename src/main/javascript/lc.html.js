@@ -49,6 +49,11 @@ lc.core.namespace("lc.html", {
 			return after.parentNode.insertBefore(toInsert, after.nextSibling);
 		return after.parentNode.appendChild(toInsert);
 	},
+	
+	removeChildrenAfter: function(after) {
+		while (after.nextSibling)
+			lc.html.reove(after.nextSibling);
+	},
 
 	escape: function(unsafe) {
 	    return unsafe

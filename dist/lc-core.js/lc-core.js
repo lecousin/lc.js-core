@@ -779,42 +779,104 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 	}
 	
 });
-lc.core.namespace("lc.context", {
-	
-	get: function(element) {
+lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
+	'use strict';
+	lc.core.createClass("lc.Context",
+	function(element) {
+		element._lc_context = this;
+		this.element = element;
+		Object.defineProperty(this, "_values", {
+			enumerable: false,
+			writable: false,
+			value: {}
+		});
+		Object.defineProperty(this, "events", {
+			enumerable: false,
+			writable: false,
+			value: new lc.events.Producer()
+		});
+		this.events.registerEvents(["propertyAdded", "propertyRemoved", "propertySet", "changed", "destroyed"]);
+		lc.Context.globalEvents.trigger("contextCreated", [this]);
+		lc.events.listen(element, 'destroy', new lc.async.Callback(this, function() {
+			element._lc_context = null;
+			this.events.trigger("destroyed", [this]);
+			lc.Context.globalEvents.trigger("contextDestroyed", [this]);
+			this.element = null;
+		}));
+	}, {
+		
+		addProperty: function(name, value) {
+			if (typeof this._values[name] !== 'undefined')
+				throw "Property " + name + " already exists";
+			this._values[name] = value;
+			Object.defineProperty(this, name, {
+				enumerable: true,
+				configurable: true,
+				get: function() { return this._values[name]; },
+				set: function(value) {
+					if (value === this._values[name]) return;
+					this._values[name] = value;
+					this.events.trigger("propertySet", [this, name, value]);
+					lc.Context.globalEvents.trigger("propertySet", [this, name, value]);
+					this.events.trigger("changed", [this]);
+					lc.Context.globalEvents.trigger("changed", [this]);
+				}
+			});
+			this.events.trigger("propertyAdded", [this, name, value]);
+			lc.Context.globalEvents.trigger("propertyAdded", [this, name, value]);
+			this.events.trigger("changed", [this]);
+			lc.Context.globalEvents.trigger("changed", [this]);
+		},
+		
+		removeProperty: function(name) {
+			if (typeof this._values[name] === 'undefined') return;
+			delete this_values[name];
+			delete this[name];
+			this.events.trigger("propertyRemoved", [this, name]);
+			lc.Context.globalEvents.trigger("propertyRemoved", [this, name]);
+			this.events.trigger("changed", [this]);
+			lc.Context.globalEvents.trigger("changed", [this]);
+		},
+		
+		hasProperty: function(name) {
+			return typeof this._values[name] !== 'undefined';
+		},
+		
+		getProperty: function(name) {
+			if (typeof this._values[name] === 'undefined') return undefined;
+			return this._values[name];
+		}
+		
+	});
+
+	lc.Context.get = function(element, doNotCreate) {
 		if (typeof element["_lc_context"] === 'undefined')
-			return undefined;
-		return element._lc_context;
-	},
-	
-	getOrCreate: function(element) {
-		if (typeof element["_lc_context"] === 'undefined')
-			element._lc_context = {};
-		return element._lc_context;
-	},
-	
-	getAttribute: function(element, attributeName, defaultValue) {
-		var ctx = lc.context.get(element);
-		if (!ctx) return defaultValue;
-		if (typeof ctx[attributeName] === 'undefined') return defaultValue;
-		return ctx[attributeName];
-	},
-	
-	setAttribute: function(element, attributeName, value) {
-		var ctx = lc.context.getOrCreate(element);
-		ctx[attributeName] = value;
-	},
-	
-	removeAttribute: function(element, attributeName) {
-		var ctx = lc.context.get(element);
+			return doNotCreate ? null : new lc.Context(element);
+		return element["_lc_context"];
+	};
+
+	lc.Context.getValue = function(element, propertyName) {
+		var ctx = lc.Context.get(element, true);
 		if (!ctx) return undefined;
-		if (typeof ctx[attributeName] === 'undefined') return undefined;
-		var value = ctx[attributeName];
-		delete ctx[attributeName];
-		return value;
-	}
+		return ctx.getProperty(propertyName);
+	};
 	
+	lc.Context.aggregate = function(element) {
+		var ctx = {};
+		do {
+			var c = lc.Context.get(element, true);
+			if (c)
+				for (var n in c)
+					if (typeof ctx[n] === 'undefined') ctx[n] = c[n];
+			element = element.parentNode;
+		} while (element && element.nodeName != "HTML");
+		return ctx;
+	};
+	
+	lc.Context.globalEvents = new lc.events.Producer();
+	lc.Context.globalEvents.registerEvents(["propertyAdded","propertyRemoved","propertySet", "changed", "contextCreated", "contextDestroyed"]);
 });
+
 lc.core.namespace("lc.cookies", {
 	
 	get: function(cookieName) {
@@ -943,11 +1005,13 @@ lc.core.createClass("lc.events.Producer", function() {
 	registerEvent: function(eventName) {
 		eventName = eventName.toLowerCase();
 		this.eventsListeners[eventName] = [];
+		if (lc.log.trace("lc.events.Producer"))
+			lc.log.trace("lc.events.Producer", "Event registered: " + eventName);
 	},
 	
 	registerEvents: function(eventsNames) {
 		for (var i = 0; i < eventsNames.length; ++i)
-			this.eventsListeners[eventsNames[i].toLowerCase()] = [];
+			this.registerEvent(eventsNames[i]);
 	},
 	
 	unregisterEvents: function(eventsNames) {
@@ -978,7 +1042,8 @@ lc.core.createClass("lc.events.Producer", function() {
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
 			throw "Unknown event: "+eventName;
-		lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
+		if (lc.log.debug("lc.events.Producer"))
+			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
 		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
 	},
 	
@@ -1043,6 +1108,10 @@ lc.core.createClass("lc.Extendable", function() {
 		return null;
 	},
 	
+	hasExtension: function(extension) {
+		return this.getExtension(extension) != null;
+	},
+	
 	callExtensions: function(method) {
 		if (!this.extensions) return; // destroyed
 		var args = Array.prototype.slice.call(arguments, 1);
@@ -1084,6 +1153,14 @@ lc.Extension.Registry = {
 			if (lc.core.instanceOf(obj, this._extensions[i].extended))
 				if (this._extensions[i].extension.prototype.detect(obj))
 					obj.addExtension(this._extensions[i].extension);
+	},
+	
+	getAvailableFor: function(extended) {
+		var list = [];
+		for (var i = 0; i < this._extensions.length; ++i)
+			if (this._extensions[i].extended === extended)
+				list.push(this._extensions[i].extension);
+		return list;
 	}
 };
 /**
@@ -1136,6 +1213,11 @@ lc.core.namespace("lc.html", {
 		if (after.nextSibling)
 			return after.parentNode.insertBefore(toInsert, after.nextSibling);
 		return after.parentNode.appendChild(toInsert);
+	},
+	
+	removeChildrenAfter: function(after) {
+		while (after.nextSibling)
+			lc.html.reove(after.nextSibling);
 	},
 
 	escape: function(unsafe) {

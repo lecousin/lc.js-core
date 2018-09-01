@@ -50,6 +50,10 @@ lc.core.createClass("lc.Extendable", function() {
 		return null;
 	},
 	
+	hasExtension: function(extension) {
+		return this.getExtension(extension) != null;
+	},
+	
 	callExtensions: function(method) {
 		if (!this.extensions) return; // destroyed
 		var args = Array.prototype.slice.call(arguments, 1);
@@ -91,5 +95,13 @@ lc.Extension.Registry = {
 			if (lc.core.instanceOf(obj, this._extensions[i].extended))
 				if (this._extensions[i].extension.prototype.detect(obj))
 					obj.addExtension(this._extensions[i].extension);
+	},
+	
+	getAvailableFor: function(extended) {
+		var list = [];
+		for (var i = 0; i < this._extensions.length; ++i)
+			if (this._extensions[i].extended === extended)
+				list.push(this._extensions[i].extension);
+		return list;
 	}
 };
