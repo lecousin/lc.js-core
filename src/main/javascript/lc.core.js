@@ -72,22 +72,43 @@ lc.core = {
 		return ns[cname];
 	},
 	
+	fromName: function(name) {
+		return lc.core._fromName(window, name);
+	},
+	
+	_fromName: function(parent, name) {
+		if (typeof parent[name] !== 'undefined')
+			return parent[name];
+		var pos = 0;
+		while (pos < name.length) {
+			var i = name.indexOf('.', pos);
+			if (i <= 0) return undefined;
+			if (typeof parent[name.substring(0, i)] !== 'undefined') {
+				var val = lc.core._fromName(parent[name.substring(0, i)], name.substring(i + 1));
+				if (val) return val;
+			}
+			pos = i + 1;
+		}
+		return undefined;
+	},
+	
 	instanceOf: function(obj, clazz) {
-		if (typeof clazz === 'string') clazz = window[clazz];
+		if (typeof clazz === 'string') clazz = lc.core.fromName(clazz);
 		if (obj instanceof clazz) return true;
-		if (!obj.constructor._lcExtends) return false;
+		if (typeof obj.constructor !== 'function') return false;
+		if (typeof obj.constructor._lcExtends === 'undefined') return false;
 		for (var i = 0; i < obj.constructor._lcExtends.length; ++i)
-			if (window[obj.constructor._lcExtends[i]] == clazz || lc.core.isExtending(obj.constructor._lcExtends[i], clazz))
+			if (lc.core.fromName(obj.constructor._lcExtends[i]) == clazz)
 				return true;
 		return false;
 	},
 	
 	isExtending: function(clazz, searchedClass) {
-		if (typeof clazz === 'string') clazz = window[clazz];
-		if (typeof searchedClass === 'string') searchedClass = window[searchedClass];
-		if (!clazz._lcExtends) return false;
+		if (typeof clazz === 'string') clazz = lc.core.fromName(clazz);
+		if (typeof searchedClass === 'string') searchedClass = lc.core.fromName(searchedClass);
+		if (typeof clazz._lcExtends === 'undefined') return false;
 		for (var i = 0; i < clazz._lcExtends.length; ++i)
-			if (window[clazz._lcExtends[i]] == searchedClass || lc.isExtending(clazz._lcExtends[i], searchedClass))
+			if (lc.core.fromName(clazz._lcExtends[i]) == searchedClass)
 				return true;
 		return false;
 	},

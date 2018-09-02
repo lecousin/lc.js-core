@@ -15,6 +15,16 @@ lc.core.namespace("lc.xml", {
 			if (element.childNodes[i].nodeType == 1 && element.childNodes[i].nodeName == childName)
 				return element.childNodes[i];
 		return null;
+	},
+	
+	isAncestorOf: function(ancestor, element) {
+		if (ancestor === element) return false;
+		while (element.parentNode && element.parentNode != element) {
+			if (ancestor === element.parentNode)
+				return true;
+			element = element.parentNode;
+		}
+		return false;
 	}
 
 });

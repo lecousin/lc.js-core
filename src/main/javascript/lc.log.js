@@ -88,10 +88,10 @@ lc.core.namespace("lc.log", {
 	},
 	
 	log: function(logger, level, message, exception) {
-		if (message && message.stack)
-			message = "" + message + "\n" + message.stack;
-		if (exception)
-			message = message + "\n" + exception.stack;
+		if (exception && exception.stack)
+			message = message + "\r\n" + exception.stack;
+		else if (message && message.stack)
+			message = "" + message + "\r\n" + message.stack;
 		if (!logger) {
 			// default
 			if (level < lc.log._defaultLevel)

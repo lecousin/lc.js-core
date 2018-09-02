@@ -108,22 +108,43 @@ lc.core = {
 		return ns[cname];
 	},
 	
+	fromName: function(name) {
+		return lc.core._fromName(window, name);
+	},
+	
+	_fromName: function(parent, name) {
+		if (typeof parent[name] !== 'undefined')
+			return parent[name];
+		var pos = 0;
+		while (pos < name.length) {
+			var i = name.indexOf('.', pos);
+			if (i <= 0) return undefined;
+			if (typeof parent[name.substring(0, i)] !== 'undefined') {
+				var val = lc.core._fromName(parent[name.substring(0, i)], name.substring(i + 1));
+				if (val) return val;
+			}
+			pos = i + 1;
+		}
+		return undefined;
+	},
+	
 	instanceOf: function(obj, clazz) {
-		if (typeof clazz === 'string') clazz = window[clazz];
+		if (typeof clazz === 'string') clazz = lc.core.fromName(clazz);
 		if (obj instanceof clazz) return true;
-		if (!obj.constructor._lcExtends) return false;
+		if (typeof obj.constructor !== 'function') return false;
+		if (typeof obj.constructor._lcExtends === 'undefined') return false;
 		for (var i = 0; i < obj.constructor._lcExtends.length; ++i)
-			if (window[obj.constructor._lcExtends[i]] == clazz || lc.core.isExtending(obj.constructor._lcExtends[i], clazz))
+			if (lc.core.fromName(obj.constructor._lcExtends[i]) == clazz)
 				return true;
 		return false;
 	},
 	
 	isExtending: function(clazz, searchedClass) {
-		if (typeof clazz === 'string') clazz = window[clazz];
-		if (typeof searchedClass === 'string') searchedClass = window[searchedClass];
-		if (!clazz._lcExtends) return false;
+		if (typeof clazz === 'string') clazz = lc.core.fromName(clazz);
+		if (typeof searchedClass === 'string') searchedClass = lc.core.fromName(searchedClass);
+		if (typeof clazz._lcExtends === 'undefined') return false;
 		for (var i = 0; i < clazz._lcExtends.length; ++i)
-			if (window[clazz._lcExtends[i]] == searchedClass || lc.isExtending(clazz._lcExtends[i], searchedClass))
+			if (lc.core.fromName(clazz._lcExtends[i]) == searchedClass)
 				return true;
 		return false;
 	},
@@ -779,6 +800,32 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 	}
 	
 });
+lc.core.createClass("lc.Configurable",
+	function(properties) {
+		if (!properties) properties = {};
+		for (var n in properties) {
+			var p = properties[n];
+			var descr = {
+				enumerable: true
+			};
+			
+			if (p.get) descr.get = new Function("return this.configurableProperties[\"" + n + "\"].get.call(this, this.configurableProperties);");
+			else descr.get = new Function("return this.configurableProperties[\"" + n + "\"].value;");
+			
+			if (p.set) descr.set = new Function("value", "return this.configurableProperties[\"" + n + "\"].set.call(this, value, this.configurableProperties);");
+			else descr.set = new Function("value", "return this.configurableProperties[\"" + n + "\"].value = value;");
+			
+			if (typeof p["writable"] !== 'undefined') descr.writable = p.writable;
+			
+			Object.defineProperty(this, n, descr);
+		}
+		this.configurableProperties = properties;
+	}, {
+		
+		configurableProperties: {}
+		
+	}
+);
 lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 	'use strict';
 	lc.core.createClass("lc.Context",
@@ -1937,10 +1984,10 @@ lc.core.namespace("lc.log", {
 	},
 	
 	log: function(logger, level, message, exception) {
-		if (message && message.stack)
-			message = "" + message + "\n" + message.stack;
-		if (exception)
-			message = message + "\n" + exception.stack;
+		if (exception && exception.stack)
+			message = message + "\r\n" + exception.stack;
+		else if (message && message.stack)
+			message = "" + message + "\r\n" + message.stack;
 		if (!logger) {
 			// default
 			if (level < lc.log._defaultLevel)
@@ -2418,6 +2465,16 @@ lc.core.namespace("lc.xml", {
 			if (element.childNodes[i].nodeType == 1 && element.childNodes[i].nodeName == childName)
 				return element.childNodes[i];
 		return null;
+	},
+	
+	isAncestorOf: function(ancestor, element) {
+		if (ancestor === element) return false;
+		while (element.parentNode && element.parentNode != element) {
+			if (ancestor === element.parentNode)
+				return true;
+			element = element.parentNode;
+		}
+		return false;
 	}
 
 });
