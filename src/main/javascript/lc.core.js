@@ -31,9 +31,11 @@ lc.core = {
 			ns = ns[names[i]];
 		}
 		var cname = names[names.length - 1];
+		var previous = typeof ns[cname] === 'undefined' ? undefined : ns[cname];
 		ns[cname] = ctor;
 		ns[cname].prototype = proto;
 		ns[cname].prototype.constructor = ctor;
+		if (previous) for (var n in previous) ns[cname][n] = previous[n];
 		ns[cname]._lcClass = name;
 		ns[cname]._lcExtends = [];
 		return parent[cname];
@@ -47,7 +49,9 @@ lc.core = {
 			ns = ns[names[i]];
 		}
 		var cname = names[names.length - 1];
+		var previous = typeof ns[cname] === 'undefined' ? undefined : ns[cname];
 		ns[cname] = ctor;
+		if (previous) for (var n in previous) ns[cname][n] = previous[n];
 		ns[cname]._lcClass = name;
 		ns[cname]._lcExtends = [];
 		
@@ -56,6 +60,8 @@ lc.core = {
 
 		var p = {};
 		for (var i = 0; i < parents.length; ++i) {
+			if (!parents[i]) throw new Error("Undefined extended class for " + name);
+			if (typeof parents[i]._lcClass === 'undefined') throw new Error("Not a valid class to extend: " + parents[i] + " (when defining class " + name + ")");
 			lc.core.merge(p, parents[i].prototype);
 			if (ns[cname]._lcExtends.indexOf(parents[i]) < 0)
 				ns[cname]._lcExtends.push(parents[i]._lcClass);

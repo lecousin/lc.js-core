@@ -14,6 +14,10 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 			writable: false,
 			value: new lc.events.Producer()
 		});
+		Object.defineProperty(this, "addProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.addProperty });
+		Object.defineProperty(this, "removeProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.removeProperty });
+		Object.defineProperty(this, "hasProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.hasProperty });
+		Object.defineProperty(this, "getProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.getProperty });
 		this.events.registerEvents(["propertyAdded", "propertyRemoved", "propertySet", "changed", "destroyed"]);
 		lc.Context.globalEvents.trigger("contextCreated", [this]);
 		lc.events.listen(element, 'destroy', new lc.async.Callback(this, function() {

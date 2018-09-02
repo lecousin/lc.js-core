@@ -67,9 +67,11 @@ lc.core = {
 			ns = ns[names[i]];
 		}
 		var cname = names[names.length - 1];
+		var previous = typeof ns[cname] === 'undefined' ? undefined : ns[cname];
 		ns[cname] = ctor;
 		ns[cname].prototype = proto;
 		ns[cname].prototype.constructor = ctor;
+		if (previous) for (var n in previous) ns[cname][n] = previous[n];
 		ns[cname]._lcClass = name;
 		ns[cname]._lcExtends = [];
 		return parent[cname];
@@ -83,7 +85,9 @@ lc.core = {
 			ns = ns[names[i]];
 		}
 		var cname = names[names.length - 1];
+		var previous = typeof ns[cname] === 'undefined' ? undefined : ns[cname];
 		ns[cname] = ctor;
+		if (previous) for (var n in previous) ns[cname][n] = previous[n];
 		ns[cname]._lcClass = name;
 		ns[cname]._lcExtends = [];
 		
@@ -92,6 +96,8 @@ lc.core = {
 
 		var p = {};
 		for (var i = 0; i < parents.length; ++i) {
+			if (!parents[i]) throw new Error("Undefined extended class for " + name);
+			if (typeof parents[i]._lcClass === 'undefined') throw new Error("Not a valid class to extend: " + parents[i] + " (when defining class " + name + ")");
 			lc.core.merge(p, parents[i].prototype);
 			if (ns[cname]._lcExtends.indexOf(parents[i]) < 0)
 				ns[cname]._lcExtends.push(parents[i]._lcClass);
@@ -842,6 +848,10 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 			writable: false,
 			value: new lc.events.Producer()
 		});
+		Object.defineProperty(this, "addProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.addProperty });
+		Object.defineProperty(this, "removeProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.removeProperty });
+		Object.defineProperty(this, "hasProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.hasProperty });
+		Object.defineProperty(this, "getProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.getProperty });
 		this.events.registerEvents(["propertyAdded", "propertyRemoved", "propertySet", "changed", "destroyed"]);
 		lc.Context.globalEvents.trigger("contextCreated", [this]);
 		lc.events.listen(element, 'destroy', new lc.async.Callback(this, function() {
