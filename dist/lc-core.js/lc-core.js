@@ -212,7 +212,7 @@ lc.core.namespace("lc.app", {
 		var value = undefined;
 		try { value = eval("("+expression+")"); }
 		catch (e) {}
-		if (typeof value != 'undefined' && lc.core._loaded) {
+		if (typeof value !== 'undefined' && lc.core._loaded) {
 			lc.async.Callback.callListeners(listener);
 			return;
 		}
@@ -226,8 +226,10 @@ lc.core.namespace("lc.app", {
 		do {
 			nb = Object.keys(lc.app._expectedExpressions).length;
 			for (var expression in lc.app._expectedExpressions) {
-				var value = eval("("+expression+")");
-				if (typeof value != 'undefined') {
+				var value = undefined;
+				try { value = eval("("+expression+")"); }
+				catch (e) {}
+				if (typeof value !== 'undefined') {
 					lc.async.Callback.callListeners(lc.app._expectedExpressions[expression]);
 					delete lc.app._expectedExpressions[expression];
 				}
@@ -316,6 +318,7 @@ lc.core.namespace("lc.animation", {
 			classStart = "lc-animate-start";
 			classEnd = "lc-animate-end";
 		}
+		var future = new lc.async.Future();
 		var started = false, ended = false;
 		var onstart, onend;
 		onstart = function() {
@@ -324,22 +327,24 @@ lc.core.namespace("lc.animation", {
 		};
 		onend = function() {
 			if (ended) return;
+			lc.css.removeClass(element, "lc-animate");
 			lc.css.removeClass(element, classEnd);
 			element.removeEventListener("transitionend", onend);
 			element.removeEventListener("transitioncancel", onend);
 			ended = true;
-			if (ondone) lc.Callback.call(ondone);
+			future.success();
 		};
 		element.addEventListener("transitionstart", onstart);
 		element.addEventListener("transitionend", onend);
 		element.addEventListener("transitioncancel", onend);
+		lc.css.addClass(element, "lc-animate");
 		lc.css.addClass(element, classStart);
-		var future = new lc.async.Future();
 		setTimeout(function() {
 			// transitionstart event does not work yet
 			var s = getComputedStyle(element);
 			if (s.transitionProperty) started = true;
 			if (!started) {
+				lc.css.removeClass(element, "lc-animate");
 				lc.css.removeClass(element, classStart);
 				element.removeEventListener("transitionstart", onstart);
 				element.removeEventListener("transitionend", onend);
@@ -407,6 +412,8 @@ lc.core.namespace("lc.animation", {
 	
 	expandHeight: function(element, time) {
 		var s = getComputedStyle(element);
+		element.style.paddingTop = "0px";
+		element.style.paddingBottom = "0px";
 		var height = element.clientHeight;
 		element.style.transitionProperty = "height,transform,padding";
 		element.style.transitionDuration = time+'ms';
@@ -415,8 +422,6 @@ lc.core.namespace("lc.animation", {
 		element.style.overflow = "hidden";
 		element.style.height = "0px";
 		element.style.transform = "scaleY(0)";
-		element.style.paddingTop = "0px";
-		element.style.paddingBottom = "0px";
 		var future = new lc.async.Future();
 		setTimeout(function() {
 			element.style.paddingTop = s.paddingTop;
@@ -747,9 +752,12 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 	this._timeout = itemTimeout;
 	this._onrelease = onrelease;
 	if (itemTimeout > 0) {
-		if (checkInterval <= 0) checkInterval = 30000;
+		if (checkInterval <= 0 || !checkInterval) checkInterval = 30000;
 		var that = this;
-		this._interval = setInterval(function() { that._checkTimeout(); }, checkInterval);
+		this._interval = setInterval(function() {
+			if (lc.log.trace("lc.Cache")) lc.log.trace("lc.Cache", "Check cache timeout");
+			that._checkTimeout();
+		}, checkInterval);
 	}
 }, {
 	
@@ -887,7 +895,7 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 		
 		removeProperty: function(name) {
 			if (typeof this._values[name] === 'undefined') return;
-			delete this_values[name];
+			delete this._values[name];
 			delete this[name];
 			this.events.trigger("propertyRemoved", [this, name]);
 			lc.Context.globalEvents.trigger("propertyRemoved", [this, name]);
@@ -999,8 +1007,8 @@ lc.core.namespace("lc.events", {
 		}
 	},
 
-	listen: function(element, eventType, listener) {
-		if (!listener) throw "No listener given to lc.events.listen";
+	listen: function(element, eventType, listener, useCapture) {
+		if (!listener) throw new Error("No listener given to lc.events.listen");
 		if (!element._eventListeners)
 			element._eventListeners = [];
 		if (typeof listener === 'function')
@@ -1012,12 +1020,12 @@ lc.core.namespace("lc.events", {
 		element._eventListeners.push(e);
 		if (typeof lc.events._customEvents[eventType] === 'undefined') {
 			e.listenerFct = e.listener.toFunction();
-			element.addEventListener(eventType, e.listenerFct);
+			element.addEventListener(eventType, e.listenerFct, useCapture);
 		} else
 			lc.events._customEvents[eventType](element, listener);
 	},
 	
-	unlisten: function(element, eventType, listener) {
+	unlisten: function(element, eventType, listener, useCapture) {
 		if (element._eventListeners) {
 			for (var i = 0; i < element._eventListeners.length; ++i)
 				if (element._eventListeners[i].eventType == eventType && (element._eventListeners[i].listener == listener || element._eventListeners[i].listener._fct == listener)) {
@@ -1028,7 +1036,7 @@ lc.core.namespace("lc.events", {
 				}
 		}
 		if (typeof lc.events._customEvents[eventType] === 'undefined') {
-			element.removeEventListener(eventType, listener);
+			element.removeEventListener(eventType, listener, useCapture);
 		}
 	},
 	
@@ -1079,14 +1087,14 @@ lc.core.createClass("lc.events.Producer", function() {
 	on: function(eventName, listener) {
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
-			throw "Unknown event: "+eventName;
+			throw new Error("Unknown event: "+eventName);
 		this.eventsListeners[eventName].push(listener);
 	},
 	
 	unlisten: function(eventName, listener) {
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
-			throw "Unknown event: "+eventName;
+			throw new Error("Unknown event: "+eventName);
 		for (var i = 0; i < this.eventsListeners[eventName].length; ++i)
 			if (this.eventsListeners[eventName][i] == listener) {
 				this.eventsListeners[eventName].splice(i,1);
@@ -1098,7 +1106,7 @@ lc.core.createClass("lc.events.Producer", function() {
 		if (!this.eventsListeners) return; // destroyed
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
-			throw "Unknown event: "+eventName;
+			throw new Error("Unknown event: "+eventName);
 		if (lc.log.debug("lc.events.Producer"))
 			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
 		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
@@ -1107,6 +1115,25 @@ lc.core.createClass("lc.events.Producer", function() {
 	hasEvent: function(eventName) {
 		eventName = eventName.toLowerCase();
 		return typeof this.eventsListeners[eventName] != 'undefined';
+	},
+	
+	createListenersFromElement: function(element) {
+		if (!element || element.nodeType != 1) return;
+		for (var i = 0; i < element.attributes.length; ++i) {
+			var a = element.attributes.item(i);
+			if (!a.nodeName.startsWith("on-")) continue;
+			var eventName = a.nodeName.substring(3);
+			if (!this.hasEvent(eventName)) {
+				lc.log.warn("lc.events.Producer", "Unknown event from attribute " + a.nodeName);
+				continue;
+			}
+			try {
+				var listener = new Function(a.nodeValue);
+				this.listen(eventName, new lc.async.Callback(this, listener));
+			} catch (error) {
+				lc.log.error("lc.events.Producer", "Invalid event listener function from attribute " + a.nodeName + ": " + a.nodeValue, error);
+			}
+		}
 	},
 	
 	destroy: function() {
@@ -1128,10 +1155,20 @@ lc.core.createClass("lc.Extendable", function() {
 	
 	addExtension: function(extension) {
 		if (this.getExtension(extension) != null) return;
-		extension = new extension();
+		try {
+			extension = new extension();
+		} catch (error) {
+			lc.log.error("lc.Extendable", "Error instantiating extension " + extension + ": " + error, error);
+			return;
+		}
 		this.extensions.push(extension);
-		extension.init(this);
+		try {
+			extension.init(this);
+		} catch (error) {
+			lc.log.error("lc.Extendable", "Error initializing extension " + lc.core.typeOf(extension) + ": " + error, error);
+		}
 		this.extensionAdded(extension);
+		return extension;
 	},
 	
 	extensionAdded: function(extension) {},
@@ -1174,9 +1211,13 @@ lc.core.createClass("lc.Extendable", function() {
 		var args = Array.prototype.slice.call(arguments, 1);
 		for (var i = 0; i < this.extensions.length; ++i)
 			if (typeof this.extensions[i][method] === 'function') {
-				this.extensions[i][method].apply(this.extensions[i], args);
-				// an extension may cause the destruction
-				if (!this.extensions) return;
+				try {
+					this.extensions[i][method].apply(this.extensions[i], args);
+					// an extension may cause the destruction
+					if (!this.extensions) return;
+				} catch (error) {
+					lc.log.error("lc.Extandable", "Error calling method " + method + " on extension " + lc.core.typeOf(this.extensions[i]) + ": " + error, error);
+				}
 			}
 	},
 	
@@ -1215,7 +1256,7 @@ lc.Extension.Registry = {
 	getAvailableFor: function(extended) {
 		var list = [];
 		for (var i = 0; i < this._extensions.length; ++i)
-			if (this._extensions[i].extended === extended)
+			if (this._extensions[i].extended === extended || lc.core.isExtending(extended, this._extensions[i].extended))
 				list.push(this._extensions[i].extension);
 		return list;
 	}
@@ -1274,7 +1315,7 @@ lc.core.namespace("lc.html", {
 	
 	removeChildrenAfter: function(after) {
 		while (after.nextSibling)
-			lc.html.reove(after.nextSibling);
+			lc.html.remove(after.nextSibling);
 	},
 
 	escape: function(unsafe) {

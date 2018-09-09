@@ -2,9 +2,12 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 	this._timeout = itemTimeout;
 	this._onrelease = onrelease;
 	if (itemTimeout > 0) {
-		if (checkInterval <= 0) checkInterval = 30000;
+		if (checkInterval <= 0 || !checkInterval) checkInterval = 30000;
 		var that = this;
-		this._interval = setInterval(function() { that._checkTimeout(); }, checkInterval);
+		this._interval = setInterval(function() {
+			if (lc.log.trace("lc.Cache")) lc.log.trace("lc.Cache", "Check cache timeout");
+			that._checkTimeout();
+		}, checkInterval);
 	}
 }, {
 	

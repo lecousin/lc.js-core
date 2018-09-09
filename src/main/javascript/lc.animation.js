@@ -5,6 +5,7 @@ lc.core.namespace("lc.animation", {
 			classStart = "lc-animate-start";
 			classEnd = "lc-animate-end";
 		}
+		var future = new lc.async.Future();
 		var started = false, ended = false;
 		var onstart, onend;
 		onstart = function() {
@@ -13,22 +14,24 @@ lc.core.namespace("lc.animation", {
 		};
 		onend = function() {
 			if (ended) return;
+			lc.css.removeClass(element, "lc-animate");
 			lc.css.removeClass(element, classEnd);
 			element.removeEventListener("transitionend", onend);
 			element.removeEventListener("transitioncancel", onend);
 			ended = true;
-			if (ondone) lc.Callback.call(ondone);
+			future.success();
 		};
 		element.addEventListener("transitionstart", onstart);
 		element.addEventListener("transitionend", onend);
 		element.addEventListener("transitioncancel", onend);
+		lc.css.addClass(element, "lc-animate");
 		lc.css.addClass(element, classStart);
-		var future = new lc.async.Future();
 		setTimeout(function() {
 			// transitionstart event does not work yet
 			var s = getComputedStyle(element);
 			if (s.transitionProperty) started = true;
 			if (!started) {
+				lc.css.removeClass(element, "lc-animate");
 				lc.css.removeClass(element, classStart);
 				element.removeEventListener("transitionstart", onstart);
 				element.removeEventListener("transitionend", onend);
@@ -96,6 +99,8 @@ lc.core.namespace("lc.animation", {
 	
 	expandHeight: function(element, time) {
 		var s = getComputedStyle(element);
+		element.style.paddingTop = "0px";
+		element.style.paddingBottom = "0px";
 		var height = element.clientHeight;
 		element.style.transitionProperty = "height,transform,padding";
 		element.style.transitionDuration = time+'ms';
@@ -104,8 +109,6 @@ lc.core.namespace("lc.animation", {
 		element.style.overflow = "hidden";
 		element.style.height = "0px";
 		element.style.transform = "scaleY(0)";
-		element.style.paddingTop = "0px";
-		element.style.paddingBottom = "0px";
 		var future = new lc.async.Future();
 		setTimeout(function() {
 			element.style.paddingTop = s.paddingTop;

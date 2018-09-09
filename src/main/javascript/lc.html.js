@@ -52,7 +52,7 @@ lc.core.namespace("lc.html", {
 	
 	removeChildrenAfter: function(after) {
 		while (after.nextSibling)
-			lc.html.reove(after.nextSibling);
+			lc.html.remove(after.nextSibling);
 	},
 
 	escape: function(unsafe) {

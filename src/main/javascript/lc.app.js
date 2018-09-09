@@ -7,7 +7,7 @@ lc.core.namespace("lc.app", {
 		var value = undefined;
 		try { value = eval("("+expression+")"); }
 		catch (e) {}
-		if (typeof value != 'undefined' && lc.core._loaded) {
+		if (typeof value !== 'undefined' && lc.core._loaded) {
 			lc.async.Callback.callListeners(listener);
 			return;
 		}
@@ -21,8 +21,10 @@ lc.core.namespace("lc.app", {
 		do {
 			nb = Object.keys(lc.app._expectedExpressions).length;
 			for (var expression in lc.app._expectedExpressions) {
-				var value = eval("("+expression+")");
-				if (typeof value != 'undefined') {
+				var value = undefined;
+				try { value = eval("("+expression+")"); }
+				catch (e) {}
+				if (typeof value !== 'undefined') {
 					lc.async.Callback.callListeners(lc.app._expectedExpressions[expression]);
 					delete lc.app._expectedExpressions[expression];
 				}

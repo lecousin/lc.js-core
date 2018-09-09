@@ -19,8 +19,8 @@ lc.core.namespace("lc.events", {
 		}
 	},
 
-	listen: function(element, eventType, listener) {
-		if (!listener) throw "No listener given to lc.events.listen";
+	listen: function(element, eventType, listener, useCapture) {
+		if (!listener) throw new Error("No listener given to lc.events.listen");
 		if (!element._eventListeners)
 			element._eventListeners = [];
 		if (typeof listener === 'function')
@@ -32,12 +32,12 @@ lc.core.namespace("lc.events", {
 		element._eventListeners.push(e);
 		if (typeof lc.events._customEvents[eventType] === 'undefined') {
 			e.listenerFct = e.listener.toFunction();
-			element.addEventListener(eventType, e.listenerFct);
+			element.addEventListener(eventType, e.listenerFct, useCapture);
 		} else
 			lc.events._customEvents[eventType](element, listener);
 	},
 	
-	unlisten: function(element, eventType, listener) {
+	unlisten: function(element, eventType, listener, useCapture) {
 		if (element._eventListeners) {
 			for (var i = 0; i < element._eventListeners.length; ++i)
 				if (element._eventListeners[i].eventType == eventType && (element._eventListeners[i].listener == listener || element._eventListeners[i].listener._fct == listener)) {
@@ -48,7 +48,7 @@ lc.core.namespace("lc.events", {
 				}
 		}
 		if (typeof lc.events._customEvents[eventType] === 'undefined') {
-			element.removeEventListener(eventType, listener);
+			element.removeEventListener(eventType, listener, useCapture);
 		}
 	},
 	
@@ -99,14 +99,14 @@ lc.core.createClass("lc.events.Producer", function() {
 	on: function(eventName, listener) {
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
-			throw "Unknown event: "+eventName;
+			throw new Error("Unknown event: "+eventName);
 		this.eventsListeners[eventName].push(listener);
 	},
 	
 	unlisten: function(eventName, listener) {
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
-			throw "Unknown event: "+eventName;
+			throw new Error("Unknown event: "+eventName);
 		for (var i = 0; i < this.eventsListeners[eventName].length; ++i)
 			if (this.eventsListeners[eventName][i] == listener) {
 				this.eventsListeners[eventName].splice(i,1);
@@ -118,7 +118,7 @@ lc.core.createClass("lc.events.Producer", function() {
 		if (!this.eventsListeners) return; // destroyed
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
-			throw "Unknown event: "+eventName;
+			throw new Error("Unknown event: "+eventName);
 		if (lc.log.debug("lc.events.Producer"))
 			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
 		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
@@ -127,6 +127,25 @@ lc.core.createClass("lc.events.Producer", function() {
 	hasEvent: function(eventName) {
 		eventName = eventName.toLowerCase();
 		return typeof this.eventsListeners[eventName] != 'undefined';
+	},
+	
+	createListenersFromElement: function(element) {
+		if (!element || element.nodeType != 1) return;
+		for (var i = 0; i < element.attributes.length; ++i) {
+			var a = element.attributes.item(i);
+			if (!a.nodeName.startsWith("on-")) continue;
+			var eventName = a.nodeName.substring(3);
+			if (!this.hasEvent(eventName)) {
+				lc.log.warn("lc.events.Producer", "Unknown event from attribute " + a.nodeName);
+				continue;
+			}
+			try {
+				var listener = new Function(a.nodeValue);
+				this.listen(eventName, new lc.async.Callback(this, listener));
+			} catch (error) {
+				lc.log.error("lc.events.Producer", "Invalid event listener function from attribute " + a.nodeName + ": " + a.nodeValue, error);
+			}
+		}
 	},
 	
 	destroy: function() {

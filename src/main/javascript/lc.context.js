@@ -53,7 +53,7 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 		
 		removeProperty: function(name) {
 			if (typeof this._values[name] === 'undefined') return;
-			delete this_values[name];
+			delete this._values[name];
 			delete this[name];
 			this.events.trigger("propertyRemoved", [this, name]);
 			lc.Context.globalEvents.trigger("propertyRemoved", [this, name]);

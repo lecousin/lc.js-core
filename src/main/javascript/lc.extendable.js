@@ -13,10 +13,20 @@ lc.core.createClass("lc.Extendable", function() {
 	
 	addExtension: function(extension) {
 		if (this.getExtension(extension) != null) return;
-		extension = new extension();
+		try {
+			extension = new extension();
+		} catch (error) {
+			lc.log.error("lc.Extendable", "Error instantiating extension " + extension + ": " + error, error);
+			return;
+		}
 		this.extensions.push(extension);
-		extension.init(this);
+		try {
+			extension.init(this);
+		} catch (error) {
+			lc.log.error("lc.Extendable", "Error initializing extension " + lc.core.typeOf(extension) + ": " + error, error);
+		}
 		this.extensionAdded(extension);
+		return extension;
 	},
 	
 	extensionAdded: function(extension) {},
@@ -59,9 +69,13 @@ lc.core.createClass("lc.Extendable", function() {
 		var args = Array.prototype.slice.call(arguments, 1);
 		for (var i = 0; i < this.extensions.length; ++i)
 			if (typeof this.extensions[i][method] === 'function') {
-				this.extensions[i][method].apply(this.extensions[i], args);
-				// an extension may cause the destruction
-				if (!this.extensions) return;
+				try {
+					this.extensions[i][method].apply(this.extensions[i], args);
+					// an extension may cause the destruction
+					if (!this.extensions) return;
+				} catch (error) {
+					lc.log.error("lc.Extandable", "Error calling method " + method + " on extension " + lc.core.typeOf(this.extensions[i]) + ": " + error, error);
+				}
 			}
 	},
 	
@@ -100,7 +114,7 @@ lc.Extension.Registry = {
 	getAvailableFor: function(extended) {
 		var list = [];
 		for (var i = 0; i < this._extensions.length; ++i)
-			if (this._extensions[i].extended === extended)
+			if (this._extensions[i].extended === extended || lc.core.isExtending(extended, this._extensions[i].extended))
 				list.push(this._extensions[i].extension);
 		return list;
 	}
