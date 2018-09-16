@@ -144,7 +144,7 @@ lc.core.createClass("lc.async.Future", function() {
 	
 	onerror: function(listener) {
 		if (lc.core.instanceOf(listener, lc.async.Future))
-			return onerror(function(error) { listener.error(error); });
+			return this.onerror(function(error) { listener.error(error); });
 		if (this._done) {
 			if (this._error != undefined)
 				lc.async.Callback.callListeners([listener], [this._error]);
@@ -201,7 +201,7 @@ lc.core.extendClass("lc.async.JoinPoint", lc.async.Future, function() {
 				.onsuccess(new lc.async.Callback(this, this.join))
 				.onerror(new lc.async.Callback(this, this.error));
 		} else
-			throw "Unexpected type to join: " + lc.Core.typeOf(toJoin);
+			throw "Unexpected type to join: " + lc.core.typeOf(toJoin);
 	},
 	
 	start: function() {
@@ -223,3 +223,11 @@ lc.core.extendClass("lc.async.JoinPoint", lc.async.Future, function() {
 	}
 
 });
+
+lc.async.JoinPoint.from = function() {
+	var jp = new lc.async.JoinPoint();
+	for (var i = 0; i < arguments.length; ++i)
+		jp.addToJoin(arguments[i]);
+	jp.start();
+	return jp;
+};

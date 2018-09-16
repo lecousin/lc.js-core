@@ -8,14 +8,20 @@ lc.core.namespace("lc.locale", {
 	
 	setLanguage: function(lang) {
 		var i = lc.locale._userLanguages.indexOf(lang);
-		if (i == -1) return;
-		if (lc.locale._currentLanguage == lang) return;
+		if (i == -1) {
+			lc.log.debug("lc.locale", "setLanguage ignored for unknown language: " + lang);
+			return;
+		}
+		if (lc.locale._lang == lang) return;
+		lc.locale._lang = lang;
 		
 		// store in local storage if available, else set a cookie
 		if (window.localStorage)
 			window.localStorage.setItem("lc.locale", lang);
 		else
 			lc.cookies.set("lc.locale", lang, "/", 365*24*60*60);
+		
+		lc.log.debug("lc.locale", "language set to: " + lang);
 		
 		// load declared namespaces
 		for (var i = 0; i < lc.locale._namespaces.length; ++i)
@@ -42,8 +48,29 @@ lc.core.namespace("lc.locale", {
 		}
 	},
 	
+	loadDeclarations: function(url) {
+		var result = new lc.async.Future();
+		lc.http.rest.get(url)
+			.onerror(result)
+			.onsuccess(function(declarations) {
+				try {
+					for (var i = 0; i < declarations.namespaces.length; ++i) {
+						var ns = declarations.namespaces[i];
+						if (typeof ns === 'string')
+							lc.locale.declare(url + '/', ns, null);
+						else
+							lc.locale.declare(url + '/', ns.name, ns.languages);
+					}
+					result.success();
+				} catch (error) {
+					result.error(error);
+				}
+			});
+		return result;
+	},
+	
 	hasNamespace: function(name) {
-		return getNamespace(name) != undefined;
+		return lc.locale.getNamespace(name) != undefined;
 	},
 	
 	getNamespace: function(name) {
@@ -61,19 +88,19 @@ lc.core.namespace("lc.locale", {
 			var ns = lc.locale._namespaces[i];
 			if (Array.isArray(ns.languages)) {
 				if (langs == null) langs = ns.languages.slice();
-				else for (var i = 0; i < langs.length; ++i)
-					if (ns.languages.indexOf(langs[i]) < 0) {
-						langs.splice(i,1);
-						i--;
+				else for (var j = 0; j < langs.length; ++j)
+					if (ns.languages.indexOf(langs[j]) < 0) {
+						langs.splice(j,1);
+						j--;
 					}
 			} else {
 				jp.addToJoin(1);
 				ns.languages.onsuccess(new lc.async.Callback(ns, function() {
 					if (langs == null) langs = this.languages.slice();
-					else for (var i = 0; i < langs.length; ++i)
-						if (this.languages.indexOf(langs[i]) < 0) {
-							langs.splice(i,1);
-							i--;
+					else for (var ji = 0; j < langs.length; ++j)
+						if (this.languages.indexOf(langs[j]) < 0) {
+							langs.splice(j,1);
+							j--;
 						}
 					jp.join();
 				}));
@@ -129,8 +156,9 @@ lc.core.namespace("lc.locale", {
 		var ns = lc.locale.getNamespace(l.namespace);
 		if (!ns)
 			l.localize("[unknown namespace '" + l.namespace + "']");
-		ns.getStringAsync(l.key, l.params)
-			.onsuccess(new lc.async.Callback(l, function(localized) { this.localize(localized); }));
+		else
+			ns.getStringAsync(l.key, l.params)
+				.onsuccess(new lc.async.Callback(l, function(localized) { this.localize(localized); }));
 	}
 	
 });
@@ -146,6 +174,7 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 	} else
 		this.languages = lc.http.get(this.url + '.languages')
 			.onsuccess(new lc.async.Callback(this, function(content) {
+				lc.log.debug("lc.locale", "Languages loaded for namespace " + this.name);
 				var s = content.split(",");
 				var list = [];
 				for (var i = 0; i < s.length; ++i) {
@@ -161,23 +190,24 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 		this._content = lc.http.get(this.url + '.' + lc.locale._lang)
 			.onsuccess(new lc.async.Callback(this, function(content) {
 				this._content = this._parse(content);
+				lc.log.debug("lc.locale", "Namespace " + this.name + " loaded for language " + lc.locale._lang + ": " + this._content.length + " localized strings");
 			}));
 	},
 	
 	getStringAsync: function(key, params) {
 		var result = new lc.async.Future();
 		if (!Array.isArray(this.languages))
-			this.languages.onsuccess(new lc.async.Callback(this, function() { this._getStringAsync(key, params, result); }));
+			this.languages.onsuccess(new lc.async.Callback(this, function() { this._getStringAsync(result, key, params); }));
 		else
-			this._getStringAsync(key, params, result);
+			this._getStringAsync(result, key, params);
 		return result;
 	},
 	
 	_getStringAsync: function(result, key, params) {
-		if (!Array.isArray(this.content))
-			this.content.onsuccess(new lc.async.Callback(this, function() { this._getStringAsync2(key, params, result); }));
+		if (!Array.isArray(this._content))
+			this._content.onsuccess(new lc.async.Callback(this, function() { this._getStringAsync2(result, key, params); }));
 		else
-			this._getStringAsync2(key, params, result);
+			this._getStringAsync2(result, key, params);
 	},
 
 	_getStringAsync2: function(result, key, params) {
@@ -186,9 +216,9 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 	
 	getStringSync: function(key, params) {
 		var lkey = key.toLowerCase();
-		for (var i = 0; i < this.content.length; ++i) {
-			if (this.content[i].key == lkey)
-				return this._resolve(key, this.content[i].value, params);
+		for (var i = 0; i < this._content.length; ++i) {
+			if (this._content[i].key == lkey)
+				return this._resolve(key, this._content[i].value, params);
 		}
 		return "[unknown locale key '" + key + "' in namespace '" + this.name + "']";
 	},
@@ -199,7 +229,7 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 	},
 	
 	_parse: function(content) {
-		var lines = content.split("\n");
+		var lines = content.split(/\n/g);
 		var values = [];
 		for (var i = 0; i < lines.length; ++i) {
 			var s = lines[i].trim();
@@ -211,8 +241,8 @@ lc.core.createClass("lc.locale.Namespace", function(name, baseUrl, languages) {
 				continue;
 			}
 			values.push({
-				key: s.substring(0, i).trim().toLowerCase(),
-				value: s.substring(i + 1).trim()
+				key: s.substring(0, sep).trim().toLowerCase(),
+				value: s.substring(sep + 1).trim()
 			});
 		}
 		return values;

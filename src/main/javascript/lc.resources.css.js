@@ -19,7 +19,7 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 			lc.log.debug("lc.resources", "CSS loaded: "+us);
 			cache.future.success(css);
 		};
-		s.onerror = function() {
+		css.onerror = function() {
 			lc.log.error("lc.resources","Error loading CSS "+us);
 			js.future.error("CSS loading error"); // TODO more details ?
 		};

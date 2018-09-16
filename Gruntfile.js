@@ -10,7 +10,7 @@ module.exports = function(grunt) {
 			},
 			dist: {
 				src: ['src/main/javascript/lc.polyfill.js','src/main/javascript/lc.core.js','src/main/javascript/lc.app.js','src/main/javascript/**/*.js','!src/main/javascript/lc.footer.js','src/main/javascript/lc.footer.js'],
-				dest: 'dist/lc-core.js/lc-core.js',
+				dest: 'dist/lc-core.js',
 			}
 		},
 		uglify: {
@@ -19,7 +19,7 @@ module.exports = function(grunt) {
 			},
 			all: {
 				files: {
-					'dist/lc-core.js/lc-core.min.js': ['dist/lc-core.js/lc-core.js']
+					'dist/lc-core.min.js': ['dist/lc-core.js']
 				}
 			}
 		},

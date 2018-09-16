@@ -6,6 +6,7 @@
 lc.core.createClass("lc.Extendable", function() {
 	if (this.extensions !== null) return; // already initialized
 	this.extensions = [];
+	this._overrides = {};
 	lc.Extension.Registry.detect(this);
 	this.extensions.sort(function(f1,f2) { return f2.priority - f1.priority; });
 }, {
@@ -49,8 +50,27 @@ lc.core.createClass("lc.Extendable", function() {
 					break;
 				}
 		}
-		if (found)
+		if (found) {
+			for (var n in this._overrides) {
+				var list = this._overrides[n];
+				for (var i = 1; i < list.length; ++i) {
+					if (list[i].extension === extension) {
+						if (list[i].impl) {
+							list.splice(i, 1);
+							if (list.length == 1) {
+								// last one
+								this[n] = list[0].impl;
+								delete this._overrides[n];
+								break;
+							}
+						} else {
+							// TODO property
+						}
+					}
+				}
+			}
 			extension.destroy(this);
+		}
 	},
 	
 	getExtension: function(extension) {
@@ -78,6 +98,34 @@ lc.core.createClass("lc.Extendable", function() {
 				}
 			}
 	},
+	
+	extensionOverridesMethod: function(extension, methodName, newImplementation) {
+		if (typeof this._overrides[methodName] === 'undefined') {
+			this._overrides[methodName] = [{
+				extension: null,
+				impl: this[methodName]
+			}];
+			this[methodName] = function() {
+				return this._callOverriddenMethod(methodName, arguments);
+			};
+		}
+		this._overrides[methodName].push({
+			extension: extension,
+			impl: newImplementation
+		});
+	},
+	_callOverriddenMethod: function(methodName, args) {
+		var list = this._overrides[methodName];
+		return list[list.length - 1].impl.apply(this, args);
+	},
+	callPreviousImplementation: function(extension, methodName, args) {
+		var list = this._overrides[methodName];
+		var i = list.length - 1;
+		while (i >= 0 && list[i].extension != extension) i--;
+		if (i <= 0) return;
+		return list[i - 1].impl.apply(this, args);
+	},
+	// TODO extensionOverridesProperty
 	
 	destroy: function() {
 		if (!this.extensions) return;
