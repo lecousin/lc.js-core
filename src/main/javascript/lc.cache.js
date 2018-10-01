@@ -43,11 +43,20 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 		return true;
 	},
 	
+	clear: function() {
+		if (this._onrelease)
+			this._items.forEach(function(val, key, map) {
+				this._onrelease(key, val.item);
+			}, this);
+		this._items.clear();
+	},
+	
 	close: function() {
 		if (this._interval) {
 			clearInterval(this._interval);
 			this._interval = null;
 		}
+		this.clear();
 		this._items = null;
 	},
 	

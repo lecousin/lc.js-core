@@ -8,6 +8,7 @@ lc.core.namespace("lc.http.rest", {
 				return JSON.stringify(object);
 			},
 			fromString: function(string) {
+				if (string.length == 0) return undefined;
 				return JSON.parse(string);
 			}
 		}
@@ -47,7 +48,8 @@ lc.core.namespace("lc.http.rest", {
 		req.setRequestHeader("Accept", lc.http.rest.formats[format].mime);
 		var toSend = body ? lc.http.rest.formats[format].toString(body) : null;
 		if (toSend) req.setRequestHeader("Content-Type", lc.http.rest.formats[format].mime);
-		req.send(body);
+		if (lc.log.trace("lc.http.rest")) lc.log.trace("lc.http.rest", method + " " + url + " (" + format + ")");
+		req.send(toSend);
 		lc.http.rest._waitResponse(req, format, result);
 		return result;
 	},

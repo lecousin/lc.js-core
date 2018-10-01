@@ -186,7 +186,14 @@ lc.core.extendClass("lc.log.formatters.String", lc.log.formatters.Formatter, fun
 lc.core.extendClass("lc.log.formatters.Time", lc.log.formatters.Formatter, function() {
 }, {
 	format: function(logger, level, message) {
-		return new Date().toLocaleTimeString();
+		var date = new Date();
+		return (""+date.getFullYear()).padStart(4, "0") + "-" +
+			(""+(date.getMonth() + 1)).padStart(2, "0") + "-" +
+			(""+date.getDate()).padStart(2, "0") + " " +
+			(""+date.getHours()).padStart(2, "0") + ":" +
+			(""+date.getMinutes()).padStart(2, "0") + ":" +
+			(""+date.getSeconds()).padStart(2, "0") + "." +
+			(""+date.getMilliseconds()).padStart(3, "0");
 	}
 });
 lc.log.formatters.register("time", "lc.log.formatters.Time");

@@ -100,6 +100,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 	_state: lc.html.processor.STATE_RUNNING,
 	
 	_continueProcessing: function() {
+		if (this.result.isDone()) throw new Error("Processing is already terminated.");
 		while (true) {
 			// if globally stopped, stop every pending element and return
 			if (this._state == lc.html.processor.STATE_STOPPED) {

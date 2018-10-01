@@ -1,35 +1,45 @@
 lc.core.namespace("lc.app", {
 	
-	_expectedExpressions: {},
+	_expectedExpressions: [],
 	_applicationListeners: [],
 	
-	onDefined: function(expression, listener) {
-		var value = undefined;
-		try { value = eval("("+expression+")"); }
-		catch (e) {}
-		if (typeof value !== 'undefined' && lc.core._loaded) {
+	onDefined: function(expressions, listener) {
+		if (!Array.isArray(expressions)) expressions = [expressions];
+		if (lc.app._isDefined(expressions)) {
 			lc.async.Callback.callListeners(listener);
 			return;
 		}
-		if (typeof lc.app._expectedExpressions[expression] === 'undefined')
-			lc.app._expectedExpressions[expression] = [];
-		lc.app._expectedExpressions[expression].push(listener);
+		lc.app._expectedExpressions.push({expressions: expressions, listener: listener});
+		if (lc.log && lc.log.trace("lc.app")) lc.log.trace("lc.app", "New waited expressions: " + expressions.length);
+	},
+	
+	_isDefined: function(expressions) {
+		if (!lc.core._loaded) return false;
+		for (var i = 0; i < expressions.length; ++i) {
+			var value = undefined;
+			try { value = eval("(" + expressions[i] + ")"); }
+			catch (e) {}
+			if (typeof value === 'undefined')
+				return false;
+		}
+		return true;
 	},
 	
 	newDefinitionsAvailable: function() {
+		if (lc.app._expectedExpressions.length == 0) return;
+		if (lc.log && lc.log.trace("lc.app")) lc.log.trace("lc.app", "newDefinitionsAvailable: waiting = " + lc.app._expectedExpressions.length);
 		var nb;
 		do {
-			nb = Object.keys(lc.app._expectedExpressions).length;
-			for (var expression in lc.app._expectedExpressions) {
-				var value = undefined;
-				try { value = eval("("+expression+")"); }
-				catch (e) {}
-				if (typeof value !== 'undefined') {
-					lc.async.Callback.callListeners(lc.app._expectedExpressions[expression]);
-					delete lc.app._expectedExpressions[expression];
+			nb = lc.app._expectedExpressions.length;
+			for (var i = 0; i < lc.app._expectedExpressions.length; ++i) {
+				if (lc.app._isDefined(lc.app._expectedExpressions[i].expressions)) {
+					lc.async.Callback.callListeners(lc.app._expectedExpressions[i].listener);
+					lc.app._expectedExpressions.splice(i, 1);
+					i--;
 				}
 			}
-		} while (Object.keys(lc.app._expectedExpressions).length != nb)
+		} while (nb > 0 && lc.app._expectedExpressions.length != nb);
+		if (lc.log && lc.log.trace("lc.app")) lc.log.trace("lc.app", "Still waiting for expressions: " + lc.app._expectedExpressions.length);
 	},
 	
 	onLoaded: function(listener) {
@@ -44,12 +54,14 @@ lc.core.namespace("lc.app", {
 		lc.async.Callback.callListeners(lc.app._applicationListeners);
 		lc.app._applicationListeners = null;
 		lc.app.newDefinitionsAvailable();
-		for (var expression in lc.app._expectedExpressions)
-			lc.log.warn("lc.app", "Application loaded but still waiting for: " + expression);
+		for (var i = 0; i < lc.app._expectedExpressions.length; ++i) {
+			lc.log.warn("lc.app", "Application loaded but still waiting for: " + lc.app._expectedExpressions[i].expressions);
+		}
 		lc.log.debug("lc.app", "Application loaded.");
 	},
 	
 	_pending: [],
+	_futureListeners: [],
 	
 	pending: function(future) {
 		lc.app._pending.push(future);
@@ -60,6 +72,7 @@ lc.core.namespace("lc.app", {
 			if (lc.app._pending.length == 0)
 				lc.app._idle();
 		});
+		lc.async.Callback.callListeners(lc.app._futureListeners, [future]);
 	},
 	
 	_idleListeners: [],
@@ -91,8 +104,15 @@ lc.core.namespace("lc.app", {
 	
 	removeWorkingListener: function(listener) {
 		lc.app._workingListeners.remove(listener);
+	},
+	
+	addAsynchronousOperationListener: function(listener) {
+		lc.app._futureListeners.push(listener);
+	},
+	
+	removeAsynchronousOperationListener: function(listener) {
+		lc.app._futureListeners.remove(listener);
 	}
-
 });
 
 // on body ready, new definitions may be available with inline scripts

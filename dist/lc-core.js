@@ -34,6 +34,9 @@ Array.prototype.removeElements = function(toRemove) {
 		}
 	}
 };
+Array.prototype.pushAll = function(elements) {
+	Array.prototype.push.apply(this, elements);
+};
 if (typeof lc === 'undefined') lc = {};
 
 lc.core = {
@@ -55,6 +58,12 @@ lc.core = {
 		for (var name in source)
 			target[name] = source[name];
 		return target;
+	},
+	
+	copy: function(obj) {
+		var o = {};
+		for (var n in obj) o[n] = obj[n];
+		return o;
 	},
 	
 	// classes
@@ -96,7 +105,7 @@ lc.core = {
 
 		var p = {};
 		for (var i = 0; i < parents.length; ++i) {
-			if (!parents[i]) throw new Error("Undefined extended class for " + name);
+			if (!parents[i]) throw new Error("Undefined extended class (index " + (i) + ") for " + name);
 			if (typeof parents[i]._lcClass === 'undefined') throw new Error("Not a valid class to extend: " + parents[i] + " (when defining class " + name + ")");
 			lc.core.merge(p, parents[i].prototype);
 			if (ns[cname]._lcExtends.indexOf(parents[i]) < 0)
@@ -155,6 +164,15 @@ lc.core = {
 		return false;
 	},
 	
+	getExtendedClasses: function(obj) {
+		if (typeof obj.constructor !== 'function') return [];
+		if (typeof obj.constructor._lcExtends === 'undefined') return [];
+		var list = [];
+		for (var i = 0; i < obj.constructor._lcExtends.length; ++i)
+			list.push(lc.core.fromName(obj.constructor._lcExtends[i]));
+		return list;
+	},
+	
 	typeOf: function(obj) {
 		if (obj === null) return "null";
 		if (typeof obj != 'object') return typeof obj;
@@ -205,36 +223,46 @@ lc.core = {
 };
 lc.core.namespace("lc.app", {
 	
-	_expectedExpressions: {},
+	_expectedExpressions: [],
 	_applicationListeners: [],
 	
-	onDefined: function(expression, listener) {
-		var value = undefined;
-		try { value = eval("("+expression+")"); }
-		catch (e) {}
-		if (typeof value !== 'undefined' && lc.core._loaded) {
+	onDefined: function(expressions, listener) {
+		if (!Array.isArray(expressions)) expressions = [expressions];
+		if (lc.app._isDefined(expressions)) {
 			lc.async.Callback.callListeners(listener);
 			return;
 		}
-		if (typeof lc.app._expectedExpressions[expression] === 'undefined')
-			lc.app._expectedExpressions[expression] = [];
-		lc.app._expectedExpressions[expression].push(listener);
+		lc.app._expectedExpressions.push({expressions: expressions, listener: listener});
+		if (lc.log && lc.log.trace("lc.app")) lc.log.trace("lc.app", "New waited expressions: " + expressions.length);
+	},
+	
+	_isDefined: function(expressions) {
+		if (!lc.core._loaded) return false;
+		for (var i = 0; i < expressions.length; ++i) {
+			var value = undefined;
+			try { value = eval("(" + expressions[i] + ")"); }
+			catch (e) {}
+			if (typeof value === 'undefined')
+				return false;
+		}
+		return true;
 	},
 	
 	newDefinitionsAvailable: function() {
+		if (lc.app._expectedExpressions.length == 0) return;
+		if (lc.log && lc.log.trace("lc.app")) lc.log.trace("lc.app", "newDefinitionsAvailable: waiting = " + lc.app._expectedExpressions.length);
 		var nb;
 		do {
-			nb = Object.keys(lc.app._expectedExpressions).length;
-			for (var expression in lc.app._expectedExpressions) {
-				var value = undefined;
-				try { value = eval("("+expression+")"); }
-				catch (e) {}
-				if (typeof value !== 'undefined') {
-					lc.async.Callback.callListeners(lc.app._expectedExpressions[expression]);
-					delete lc.app._expectedExpressions[expression];
+			nb = lc.app._expectedExpressions.length;
+			for (var i = 0; i < lc.app._expectedExpressions.length; ++i) {
+				if (lc.app._isDefined(lc.app._expectedExpressions[i].expressions)) {
+					lc.async.Callback.callListeners(lc.app._expectedExpressions[i].listener);
+					lc.app._expectedExpressions.splice(i, 1);
+					i--;
 				}
 			}
-		} while (Object.keys(lc.app._expectedExpressions).length != nb)
+		} while (nb > 0 && lc.app._expectedExpressions.length != nb);
+		if (lc.log && lc.log.trace("lc.app")) lc.log.trace("lc.app", "Still waiting for expressions: " + lc.app._expectedExpressions.length);
 	},
 	
 	onLoaded: function(listener) {
@@ -249,12 +277,14 @@ lc.core.namespace("lc.app", {
 		lc.async.Callback.callListeners(lc.app._applicationListeners);
 		lc.app._applicationListeners = null;
 		lc.app.newDefinitionsAvailable();
-		for (var expression in lc.app._expectedExpressions)
-			lc.log.warn("lc.app", "Application loaded but still waiting for: " + expression);
+		for (var i = 0; i < lc.app._expectedExpressions.length; ++i) {
+			lc.log.warn("lc.app", "Application loaded but still waiting for: " + lc.app._expectedExpressions[i].expressions);
+		}
 		lc.log.debug("lc.app", "Application loaded.");
 	},
 	
 	_pending: [],
+	_futureListeners: [],
 	
 	pending: function(future) {
 		lc.app._pending.push(future);
@@ -265,6 +295,7 @@ lc.core.namespace("lc.app", {
 			if (lc.app._pending.length == 0)
 				lc.app._idle();
 		});
+		lc.async.Callback.callListeners(lc.app._futureListeners, [future]);
 	},
 	
 	_idleListeners: [],
@@ -296,8 +327,15 @@ lc.core.namespace("lc.app", {
 	
 	removeWorkingListener: function(listener) {
 		lc.app._workingListeners.remove(listener);
+	},
+	
+	addAsynchronousOperationListener: function(listener) {
+		lc.app._futureListeners.push(listener);
+	},
+	
+	removeAsynchronousOperationListener: function(listener) {
+		lc.app._futureListeners.remove(listener);
 	}
-
 });
 
 // on body ready, new definitions may be available with inline scripts
@@ -372,6 +410,137 @@ lc.core.namespace("lc.animation", {
 	
 	animateReverse: function(element) {
 		return this.animate(element, "lc-animate-end", "lc-animate-start");
+	},
+	
+	timing: {
+		// t: current time, b: start value, c: change In value, d: duration
+		linear: function(t, b, c, d) {
+			return t*c/d + b;
+		},
+		easeInQuad: function (t, b, c, d) {
+			return c*(t/=d)*t + b;
+		},
+		easeOutQuad: function (t, b, c, d) {
+			return -c *(t/=d)*(t-2) + b;
+		},
+		easeInOutQuad: function (t, b, c, d) {
+			if ((t/=d/2) < 1) return c/2*t*t + b;
+			return -c/2 * ((--t)*(t-2) - 1) + b;
+		},
+		easeInCubic: function (t, b, c, d) {
+			return c*(t/=d)*t*t + b;
+		},
+		easeOutCubic: function (t, b, c, d) {
+			return c*((t=t/d-1)*t*t + 1) + b;
+		},
+		easeInOutCubic: function (t, b, c, d) {
+			if ((t/=d/2) < 1) return c/2*t*t*t + b;
+			return c/2*((t-=2)*t*t + 2) + b;
+		},
+		easeInQuart: function (t, b, c, d) {
+			return c*(t/=d)*t*t*t + b;
+		},
+		easeOutQuart: function (t, b, c, d) {
+			return -c * ((t=t/d-1)*t*t*t - 1) + b;
+		},
+		easeInOutQuart: function (t, b, c, d) {
+			if ((t/=d/2) < 1) return c/2*t*t*t*t + b;
+			return -c/2 * ((t-=2)*t*t*t - 2) + b;
+		},
+		easeInQuint: function (t, b, c, d) {
+			return c*(t/=d)*t*t*t*t + b;
+		},
+		easeOutQuint: function (t, b, c, d) {
+			return c*((t=t/d-1)*t*t*t*t + 1) + b;
+		},
+		easeInOutQuint: function (t, b, c, d) {
+			if ((t/=d/2) < 1) return c/2*t*t*t*t*t + b;
+			return c/2*((t-=2)*t*t*t*t + 2) + b;
+		},
+		easeInSine: function (t, b, c, d) {
+			return -c * Math.cos(t/d * (Math.PI/2)) + c + b;
+		},
+		easeOutSine: function (t, b, c, d) {
+			return c * Math.sin(t/d * (Math.PI/2)) + b;
+		},
+		easeInOutSine: function (t, b, c, d) {
+			return -c/2 * (Math.cos(Math.PI*t/d) - 1) + b;
+		},
+		easeInExpo: function (t, b, c, d) {
+			return (t==0) ? b : c * Math.pow(2, 10 * (t/d - 1)) + b;
+		},
+		easeOutExpo: function (t, b, c, d) {
+			return (t==d) ? b+c : c * (-Math.pow(2, -10 * t/d) + 1) + b;
+		},
+		easeInOutExpo: function (t, b, c, d) {
+			if (t==0) return b;
+			if (t==d) return b+c;
+			if ((t/=d/2) < 1) return c/2 * Math.pow(2, 10 * (t - 1)) + b;
+			return c/2 * (-Math.pow(2, -10 * --t) + 2) + b;
+		},
+		easeInCirc: function (t, b, c, d) {
+			return -c * (Math.sqrt(1 - (t/=d)*t) - 1) + b;
+		},
+		easeOutCirc: function (t, b, c, d) {
+			return c * Math.sqrt(1 - (t=t/d-1)*t) + b;
+		},
+		easeInOutCirc: function (t, b, c, d) {
+			if ((t/=d/2) < 1) return -c/2 * (Math.sqrt(1 - t*t) - 1) + b;
+			return c/2 * (Math.sqrt(1 - (t-=2)*t) + 1) + b;
+		},
+		easeInElastic: function (t, b, c, d) {
+			var s=1.70158;var p=0;var a=c;
+			if (t==0) return b;  if ((t/=d)==1) return b+c;  if (!p) p=d*.3;
+			if (a < Math.abs(c)) { a=c; var s=p/4; }
+			else var s = p/(2*Math.PI) * Math.asin (c/a);
+			return -(a*Math.pow(2,10*(t-=1)) * Math.sin( (t*d-s)*(2*Math.PI)/p )) + b;
+		},
+		easeOutElastic: function (t, b, c, d) {
+			var s=1.70158;var p=0;var a=c;
+			if (t==0) return b;  if ((t/=d)==1) return b+c;  if (!p) p=d*.3;
+			if (a < Math.abs(c)) { a=c; var s=p/4; }
+			else var s = p/(2*Math.PI) * Math.asin (c/a);
+			return a*Math.pow(2,-10*t) * Math.sin( (t*d-s)*(2*Math.PI)/p ) + c + b;
+		},
+		easeInOutElastic: function (t, b, c, d) {
+			var s=1.70158;var p=0;var a=c;
+			if (t==0) return b;  if ((t/=d/2)==2) return b+c;  if (!p) p=d*(.3*1.5);
+			if (a < Math.abs(c)) { a=c; var s=p/4; }
+			else var s = p/(2*Math.PI) * Math.asin (c/a);
+			if (t < 1) return -.5*(a*Math.pow(2,10*(t-=1)) * Math.sin( (t*d-s)*(2*Math.PI)/p )) + b;
+			return a*Math.pow(2,-10*(t-=1)) * Math.sin( (t*d-s)*(2*Math.PI)/p )*.5 + c + b;
+		},
+		easeInBack: function (t, b, c, d, s) {
+			if (s == undefined) s = 1.70158;
+			return c*(t/=d)*t*((s+1)*t - s) + b;
+		},
+		easeOutBack: function (t, b, c, d, s) {
+			if (s == undefined) s = 1.70158;
+			return c*((t=t/d-1)*t*((s+1)*t + s) + 1) + b;
+		},
+		easeInOutBack: function (t, b, c, d, s) {
+			if (s == undefined) s = 1.70158; 
+			if ((t/=d/2) < 1) return c/2*(t*t*(((s*=(1.525))+1)*t - s)) + b;
+			return c/2*((t-=2)*t*(((s*=(1.525))+1)*t + s) + 2) + b;
+		},
+		easeInBounce: function (t, b, c, d) {
+			return c - lc.animation.functions.easeOutBounce (d-t, 0, c, d) + b;
+		},
+		easeOutBounce: function (t, b, c, d) {
+			if ((t/=d) < (1/2.75)) {
+				return c*(7.5625*t*t) + b;
+			} else if (t < (2/2.75)) {
+				return c*(7.5625*(t-=(1.5/2.75))*t + .75) + b;
+			} else if (t < (2.5/2.75)) {
+				return c*(7.5625*(t-=(2.25/2.75))*t + .9375) + b;
+			} else {
+				return c*(7.5625*(t-=(2.625/2.75))*t + .984375) + b;
+			}
+		},
+		easeInOutBounce: function (t, b, c, d) {
+			if (t < d/2) return lc.animation.functions.easeInBounce (t*2, 0, c, d) * .5 + b;
+			return lc.animation.functions.easeOutBounce (t*2-d, 0, c, d) * .5 + c*.5 + b;
+		}
 	},
 
 	collapseHeight: function(element, time) {
@@ -522,6 +691,107 @@ lc.core.namespace("lc.animation", {
 	
 });
 
+lc.core.createClass("lc.animation.AnimatedElement",
+	function(element, timing, duration) {
+		this._element = element;
+		if (!timing) timing = lc.animation.timing.easeInOutCubic;
+		this._timing = timing;
+		if (!duration || duration <= 0) duration = 100;
+		this._duration = duration;
+		this._properties = [];
+		this._listeners = [];
+	}, {
+		_start: -1,
+		_forward: true,
+		_timeout: null,
+		
+		addProperty: function(name, startValue, endValue, prefix, suffix) {
+			this._properties.push({
+				name: name,
+				start: startValue,
+				end: endValue,
+				prefix: prefix,
+				suffix: suffix
+			});
+		},
+		
+		addListener: function(listener) {
+			this._listeners.push(lc.async.Callback.from(listener));
+		},
+		
+		setTimingFunction: function(timing) {
+			if (!timing) timing = lc.animation.timing.easeInOutCubic;
+			this._timing = timing;
+		},
+		
+		setDuration: function(duration) {
+			if (!duration || duration <= 0) duration = 100;
+			this._duration = duration;
+		},
+		
+		forward: function() {
+			var now = new Date().getTime();
+			if (this._timeout == null) {
+				this._forward = true;
+				this._start = now;
+				this._applyValues(0);
+				var that = this;
+				this._timeout = setTimeout(function() { that._update(); }, 1);
+				return;
+			}
+			if (this._forward) return;
+			this._forward = true;
+			this._start = now - ((this._start + this._duration) - now);
+		},
+		
+		backward: function() {
+			var now = new Date().getTime();
+			if (this._timeout == null) {
+				this._forward = false;
+				this._start = now;
+				this._applyValues(this._duration);
+				var that = this;
+				this._timeout = setTimeout(function() { that._update(); }, 1);
+				return;
+			}
+			if (!this._forward) return;
+			this._forward = false;
+			this._start = now - ((this._start + this._duration) - now);
+		},
+		
+		_update: function() {
+			var t = new Date().getTime();
+			if (t >= this._start + this._duration) {
+				// end
+				if (this._forward) {
+					this._applyValues(this._duration);
+				} else {
+					this._applyValues(0);
+				}
+				this._start = -1;
+				this._timeout = null;
+				return;
+			}
+			if (this._forward) {
+				this._applyValues(t - this._start);
+			} else {
+				this._applyValues(this._duration - (t - this._start));
+			}
+			var that = this;
+			this._timeout = setTimeout(function() { that._update(); }, 10);
+		},
+		
+		_applyValues: function(t) {
+			var factor = this._timing(t, 0, 1, this._duration);
+			for (var i = 0; i < this._properties.length; ++i) {
+				var p = this._properties[i];
+				this._element.style[p.name] = p.prefix + (p.start + (p.end - p.start) * factor) + p.suffix;
+			}
+			lc.async.Callback.callListeners(this._listeners, [this._element, factor]);
+		}
+		
+	});
+
 /**
  * @namespace lc.async
  * Provides functionalities for asynchronous programming.
@@ -589,9 +859,11 @@ lc.async.Callback.callListeners = function(listeners, args) {
 			else if (lc.core.instanceOf(listeners[i], lc.async.Callback))
 				listeners[i].apply(args);
 			else
-				throw "Unexpected listener type: " + lc.core.typeOf(listeners[i]);
+				throw new Error("Unexpected listener type: " + lc.core.typeOf(listeners[i]));
 		} catch (error) {
-			lc.log.error("lc.async.Callback", "A listener thrown an exception: " + listeners[i] + ": " + error, error);
+			lc.log.error("lc.async.Callback", "A listener thrown an exception: " +
+				lc.core.instanceOf(listeners[i], lc.async.Callback) ? listeners[i]._fct : listeners[i] +
+				": " + error, error);
 		}
 	}
 };
@@ -605,11 +877,11 @@ lc.async.Callback.callListeners = function(listeners, args) {
  * @throws if the given argument is not supported
  */
 lc.async.Callback.from = function(callback) {
-	if (typeof listeners[i] === 'function')
+	if (typeof callback === 'function')
 		return new lc.async.Callback(window, callback);
 	if (lc.core.instanceOf(callback, lc.async.Callback))
 		return callback;
-	throw "Unexpected type: " + lc.core.typeOf(callback);
+	throw new Error("Unexpected type: " + lc.core.typeOf(callback));
 };
 
 
@@ -632,14 +904,14 @@ lc.core.createClass("lc.async.Future", function() {
 	_doneListeners: null,
 	
 	success: function(result) {
-		if (this._done) throw "Future already done";
+		if (this._done) throw new Error("Future already done");
 		this._result = result;
 		this._done = true;
 		this._callListeners();
 	},
 	
 	error: function(error) {
-		if (this._done) throw "Future already done";
+		if (this._done) throw new Error("Future already done");
 		this._error = error;
 		this._done = true;
 		this._callListeners();
@@ -690,6 +962,11 @@ lc.core.createClass("lc.async.Future", function() {
 		return this._error;
 	},
 	
+	forwardTo: function(future) {
+		this.onsuccess(function(result) { future.success(result); });
+		this.onerror(function(error) { future.error(error); });
+	},
+	
 	_callListeners: function() {
 		if (this._error === undefined)
 			lc.async.Callback.callListeners(this._successListeners, [this._result]);
@@ -703,6 +980,17 @@ lc.core.createClass("lc.async.Future", function() {
 	}
 	
 });
+
+lc.async.Future.alreadySuccess = function(result) {
+	var future = new lc.async.Future();
+	future.success(result);
+	return future;
+};
+lc.async.Future.alreadyError = function(error) {
+	var future = new lc.async.Future();
+	future.error(error);
+	return future;
+};
 
 /**
  * @class lc.async.JoinPoint
@@ -801,11 +1089,20 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 		return true;
 	},
 	
+	clear: function() {
+		if (this._onrelease)
+			this._items.forEach(function(val, key, map) {
+				this._onrelease(key, val.item);
+			}, this);
+		this._items.clear();
+	},
+	
 	close: function() {
 		if (this._interval) {
 			clearInterval(this._interval);
 			this._interval = null;
 		}
+		this.clear();
 		this._items = null;
 	},
 	
@@ -866,6 +1163,7 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 		});
 		Object.defineProperty(this, "addProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.addProperty });
 		Object.defineProperty(this, "removeProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.removeProperty });
+		Object.defineProperty(this, "setProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.setProperty });
 		Object.defineProperty(this, "hasProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.hasProperty });
 		Object.defineProperty(this, "getProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.getProperty });
 		this.events.registerEvents(["propertyAdded", "propertyRemoved", "propertySet", "changed", "destroyed"]);
@@ -911,6 +1209,14 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 			lc.Context.globalEvents.trigger("changed", [this]);
 		},
 		
+		setProperty: function(name, value) {
+			if (typeof this._values[name] === 'undefined') {
+				this.addProperty(name, value);
+				return;
+			}
+			this[name] = value;
+		},
+		
 		hasProperty: function(name) {
 			return typeof this._values[name] !== 'undefined';
 		},
@@ -932,6 +1238,16 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 		var ctx = lc.Context.get(element, true);
 		if (!ctx) return undefined;
 		return ctx.getProperty(propertyName);
+	};
+	
+	lc.Context.searchValue = function(element, propertyName) {
+		do {
+			var ctx = lc.Context.get(element, true);
+			if (ctx && ctx.hasProperty(propertyName))
+				return ctx.getProperty(propertyName);
+			element = element.parentNode;
+		} while (element);
+		return undefined;
 	};
 	
 	lc.Context.aggregate = function(element) {
@@ -1066,6 +1382,28 @@ lc.core.namespace("lc.events", {
 			for (var i = 0; i < element.childNodes.length; ++i)
 				lc.events.destroyed(element.childNodes[i]);
 	}
+
+});
+
+lc.app.onDefined("lc.html", function() {
+	
+	lc.html.addCloneHandler(function(original, clone) {
+		if (!clone._eventListeners) return;
+		clone._eventListeners = clone._eventListeners.slice();
+		for (var i = 0; i < clone._eventListeners.length; ++i) {
+			var e = clone._eventListeners[i];
+			clone._eventListeners[i] = {
+				eventType: e.eventType,
+				listener: new lc.async.Callback(e.listener.objThis, e.listener.fct, e.listener.args)
+			};
+			if (clone._eventListeners[i].listener.objThis == original)
+				clone._eventListeners[i].listener.objThis = clone;
+			if (clone._eventListeners[i].listener.args)
+				for (var j = 0; j < clone._eventListeners[i].listener.args.length; ++j)
+					if (clone._eventListeners[i].listener.args[j] == original)
+						clone._eventListeners[i].listener.args[j] = clone;
+		}
+	});
 	
 });
 
@@ -1110,14 +1448,14 @@ lc.core.createClass("lc.events.Producer", function() {
 			}
 	},
 	
-	trigger: function(eventName, eventObject) {
+	trigger: function(eventName, eventArgs) {
 		if (!this.eventsListeners) return; // destroyed
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
 			throw new Error("Unknown event: "+eventName);
 		if (lc.log.debug("lc.events.Producer"))
-			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
-		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
+			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this) + " (" + this.eventsListeners[eventName].length + " listeners)");
+		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventArgs);
 	},
 	
 	hasEvent: function(eventName) {
@@ -1381,7 +1719,26 @@ lc.core.namespace("lc.html", {
 	         .replace(/>/g, "&gt;")
 	         .replace(/"/g, "&quot;")
 	         .replace(/'/g, "&#039;");
-	 }
+	},
+	
+	_cloneHandlers: [],
+	
+	addCloneHandler: function(handler) {
+		lc.html._cloneHandlers.push(handler);
+	},
+	
+	// clone element
+	clone: function(element) {
+		var clone = element.cloneNode(true);
+		lc.html._clone(element, clone);
+		return clone;
+	},
+	_clone: function(original, clone) {
+		for (var i = 0; i < lc.html._cloneHandlers.length; ++i)
+			lc.html._cloneHandlers[i](original, clone);
+		for (var i = 0; i < original.childNodes.length; ++i)
+			lc.html._clone(original.childNodes[i], clone.childNodes[i]);
+	}
 
 });
 /**
@@ -1486,6 +1843,7 @@ lc.core.createClass("lc.html.processor.Status", function(rootElement) {
 	_state: lc.html.processor.STATE_RUNNING,
 	
 	_continueProcessing: function() {
+		if (this.result.isDone()) throw new Error("Processing is already terminated.");
 		while (true) {
 			// if globally stopped, stop every pending element and return
 			if (this._state == lc.html.processor.STATE_STOPPED) {
@@ -1653,14 +2011,23 @@ lc.core.namespace("lc.http", {
 
 // add a customizer to add future property and listen to readystatechange event
 lc.http.addCustomizer(function(xhr) {
+	if (lc.log.trace("lc.http")) lc.log.trace("lc.http", "Sending HTTP Request " + xhr._http_method + " " + xhr._http_url);
 	xhr.future = new lc.async.Future();
 	xhr.addEventListener('readystatechange', function() {
 		if (xhr.readyState != 4)
 			return;
+		if (lc.log.trace("lc.http")) lc.log.trace("lc.http", "HTTP Response received: " + xhr._http_method + " " + xhr._http_url + " => " + xhr.status + " " + xhr.statusText);
 		xhr.future.success(xhr);
 	});
 });
 
+// catch open method to save information
+window._lc_http_XMLHttpRequest_open = XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+	window._lc_http_XMLHttpRequest_open.apply(this, [method, url, async, user, password]);
+	this._http_method = method;
+	this._http_url = url;
+};
 // catch send method to customize requests, and know pending requests
 window._lc_http_XMLHttpRequest_send = XMLHttpRequest.prototype.send;
 XMLHttpRequest.prototype.send = function(body) {
@@ -1679,6 +2046,7 @@ lc.core.namespace("lc.http.rest", {
 				return JSON.stringify(object);
 			},
 			fromString: function(string) {
+				if (string.length == 0) return undefined;
 				return JSON.parse(string);
 			}
 		}
@@ -1718,7 +2086,8 @@ lc.core.namespace("lc.http.rest", {
 		req.setRequestHeader("Accept", lc.http.rest.formats[format].mime);
 		var toSend = body ? lc.http.rest.formats[format].toString(body) : null;
 		if (toSend) req.setRequestHeader("Content-Type", lc.http.rest.formats[format].mime);
-		req.send(body);
+		if (lc.log.trace("lc.http.rest")) lc.log.trace("lc.http.rest", method + " " + url + " (" + format + ")");
+		req.send(toSend);
 		lc.http.rest._waitResponse(req, format, result);
 		return result;
 	},
@@ -1838,6 +2207,10 @@ lc.core.namespace("lc.locale", {
 		// update registered elements
 		for (var i = 0; i < lc.locale._localized.length; ++i)
 			this._updateLocalized(lc.locale._localized[i]);
+	},
+	
+	getLanguage: function() {
+		return lc.locale._lang;
 	},
 	
 	declare: function(baseUrl, namespaces, languages) {
@@ -2300,7 +2673,14 @@ lc.core.extendClass("lc.log.formatters.String", lc.log.formatters.Formatter, fun
 lc.core.extendClass("lc.log.formatters.Time", lc.log.formatters.Formatter, function() {
 }, {
 	format: function(logger, level, message) {
-		return new Date().toLocaleTimeString();
+		var date = new Date();
+		return (""+date.getFullYear()).padStart(4, "0") + "-" +
+			(""+(date.getMonth() + 1)).padStart(2, "0") + "-" +
+			(""+date.getDate()).padStart(2, "0") + " " +
+			(""+date.getHours()).padStart(2, "0") + ":" +
+			(""+date.getMinutes()).padStart(2, "0") + ":" +
+			(""+date.getSeconds()).padStart(2, "0") + "." +
+			(""+date.getMilliseconds()).padStart(3, "0");
 	}
 });
 lc.log.formatters.register("time", "lc.log.formatters.Time");
@@ -2403,7 +2783,7 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 			})
 			.onerror(function(error) {
 				cache.html = "<div>" + error + "</div>"; // TODO better
-				cache.future.success(html);
+				cache.future.success(cache.html);
 			});
 		
 		return cache.future;
@@ -2430,8 +2810,8 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 		s.type = "text/javascript";
 		s.onload = function() {
 			lc.log.debug("lc.resources", "Javascript loaded: "+us);
+			lc.app.newDefinitionsAvailable(); // before to unlock the future so waited expressions are executed and everything is really ready
 			js.future.success(s);
-			lc.app.newDefinitionsAvailable();
 		};
 		s.onerror = function() {
 			lc.log.error("lc.resources","Error loading javascript "+us);
@@ -2502,6 +2882,7 @@ lc.core.namespace("lc.resources", {
 	}
 	
 });
+
 /**
  * @class lc.URL
  * Represents an URL decomposed into protocol, host, port, path, hash and params.
@@ -2511,14 +2892,14 @@ lc.core.createClass("lc.URL",
  * @constructor Parse the given string
  * @param s string|lc.URL the URL to parse (if a string) or to copy (if already an instance of lc.URL)
  */
-function(s) {
+function(s, doNotResolve) {
 	if ((s instanceof lc.URL) || (typeof s.protocol != 'undefined')) {
 		this.protocol = s.protocol;
 		this.host = s.host;
 		this.port = s.port;
 		this.path = s.path;
 		this.hash = s.hash;
-		this.params = lc.copy(s.params);
+		this.params = lc.core.copy(s.params);
 		return;
 	}
 	if (typeof s.toString == 'function')
@@ -2538,7 +2919,7 @@ function(s) {
 		} else
 			this.port = null;
 	} else {
-		if (window) {
+		if (window && !doNotResolve) {
 			this.protocol = window.location.protocol.substr(0,window.location.protocol.length-1);
 			this.host = window.location.hostname;
 			this.port = window.location.port;
@@ -2547,7 +2928,7 @@ function(s) {
 			this.host = "";
 			this.port = "";
 		}
-		if (!s.startsWith("/")) {
+		if (!s.startsWith("/") && !doNotResolve) {
 			// relative path, we need to use the base url
 			var base;
 			if (document.baseURI)
@@ -2595,17 +2976,19 @@ function(s) {
 	} else
 		this.path = s;
 	
-	// resolve .. in path
-	if (this.path.substr(0,1) != "/" && window.location.pathname) {
-		s = window.location.pathname;
-		i = s.lastIndexOf('/');
-		s = s.substr(0,i+1);
-		this.path = s + this.path;
-	}
-	while ((i = this.path.indexOf('/../')) > 0) {
-		var j = this.path.substr(0,i).lastIndexOf('/');
-		if (j < 0) break;
-		this.path = this.path.substr(0,j+1)+this.path.substr(i+4);
+	if (!doNotResolve) {
+		// resolve .. in path
+		if (this.path.substr(0,1) != "/" && window.location.pathname) {
+			s = window.location.pathname;
+			i = s.lastIndexOf('/');
+			s = s.substr(0,i+1);
+			this.path = s + this.path;
+		}
+		while ((i = this.path.indexOf('/../')) > 0) {
+			var j = this.path.substr(0,i).lastIndexOf('/');
+			if (j < 0) break;
+			this.path = this.path.substr(0,j+1)+this.path.substr(i+4);
+		}
 	}
 	
 	this.host = this.host.toLowerCase();
@@ -2660,6 +3043,28 @@ function(s) {
 		if (this.port != url.port) return false;
 		if (this.path != url.path) return false;
 		return true;
+	},
+	
+	isRelative: function() {
+		return !this.path.startsWith("/");
+	},
+	
+	applyRelative: function(rel) {
+		var u = new lc.URL(this);
+		if (!u.path.endsWith("/")) {
+			var i = u.path.lastIndexOf('/');
+			u.path = u.path.substring(0, i + 1);
+		}
+		u.path += rel.path;
+		u.params = lc.core.copy(rel.params);
+		u.hash = rel.hash;
+		
+		while ((i = u.path.indexOf('/../')) > 0) {
+			var j = u.path.substr(0,i).lastIndexOf('/');
+			if (j < 0) break;
+			u.path = u.path.substr(0,j+1)+u.path.substr(i+4);
+		}
+		return u;
 	}
 
 });

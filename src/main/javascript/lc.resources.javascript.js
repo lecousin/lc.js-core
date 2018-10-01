@@ -16,8 +16,8 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 		s.type = "text/javascript";
 		s.onload = function() {
 			lc.log.debug("lc.resources", "Javascript loaded: "+us);
+			lc.app.newDefinitionsAvailable(); // before to unlock the future so waited expressions are executed and everything is really ready
 			js.future.success(s);
-			lc.app.newDefinitionsAvailable();
 		};
 		s.onerror = function() {
 			lc.log.error("lc.resources","Error loading javascript "+us);

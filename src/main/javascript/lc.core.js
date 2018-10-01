@@ -21,6 +21,12 @@ lc.core = {
 		return target;
 	},
 	
+	copy: function(obj) {
+		var o = {};
+		for (var n in obj) o[n] = obj[n];
+		return o;
+	},
+	
 	// classes
 	
 	createClass: function(name, ctor, proto) {
@@ -60,7 +66,7 @@ lc.core = {
 
 		var p = {};
 		for (var i = 0; i < parents.length; ++i) {
-			if (!parents[i]) throw new Error("Undefined extended class for " + name);
+			if (!parents[i]) throw new Error("Undefined extended class (index " + (i) + ") for " + name);
 			if (typeof parents[i]._lcClass === 'undefined') throw new Error("Not a valid class to extend: " + parents[i] + " (when defining class " + name + ")");
 			lc.core.merge(p, parents[i].prototype);
 			if (ns[cname]._lcExtends.indexOf(parents[i]) < 0)
@@ -117,6 +123,15 @@ lc.core = {
 			if (lc.core.fromName(clazz._lcExtends[i]) == searchedClass)
 				return true;
 		return false;
+	},
+	
+	getExtendedClasses: function(obj) {
+		if (typeof obj.constructor !== 'function') return [];
+		if (typeof obj.constructor._lcExtends === 'undefined') return [];
+		var list = [];
+		for (var i = 0; i < obj.constructor._lcExtends.length; ++i)
+			list.push(lc.core.fromName(obj.constructor._lcExtends[i]));
+		return list;
 	},
 	
 	typeOf: function(obj) {

@@ -19,7 +19,7 @@ lc.app.onDefined(["lc.resources", "lc.Cache"], function() {
 			})
 			.onerror(function(error) {
 				cache.html = "<div>" + error + "</div>"; // TODO better
-				cache.future.success(html);
+				cache.future.success(cache.html);
 			});
 		
 		return cache.future;

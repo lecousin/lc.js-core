@@ -62,6 +62,25 @@ lc.core.namespace("lc.html", {
 	         .replace(/>/g, "&gt;")
 	         .replace(/"/g, "&quot;")
 	         .replace(/'/g, "&#039;");
-	 }
+	},
+	
+	_cloneHandlers: [],
+	
+	addCloneHandler: function(handler) {
+		lc.html._cloneHandlers.push(handler);
+	},
+	
+	// clone element
+	clone: function(element) {
+		var clone = element.cloneNode(true);
+		lc.html._clone(element, clone);
+		return clone;
+	},
+	_clone: function(original, clone) {
+		for (var i = 0; i < lc.html._cloneHandlers.length; ++i)
+			lc.html._cloneHandlers[i](original, clone);
+		for (var i = 0; i < original.childNodes.length; ++i)
+			lc.html._clone(original.childNodes[i], clone.childNodes[i]);
+	}
 
 });

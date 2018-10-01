@@ -16,6 +16,7 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 		});
 		Object.defineProperty(this, "addProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.addProperty });
 		Object.defineProperty(this, "removeProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.removeProperty });
+		Object.defineProperty(this, "setProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.setProperty });
 		Object.defineProperty(this, "hasProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.hasProperty });
 		Object.defineProperty(this, "getProperty", { enumerable: false, writable: false, configurable: false, value: lc.Context.prototype.getProperty });
 		this.events.registerEvents(["propertyAdded", "propertyRemoved", "propertySet", "changed", "destroyed"]);
@@ -61,6 +62,14 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 			lc.Context.globalEvents.trigger("changed", [this]);
 		},
 		
+		setProperty: function(name, value) {
+			if (typeof this._values[name] === 'undefined') {
+				this.addProperty(name, value);
+				return;
+			}
+			this[name] = value;
+		},
+		
 		hasProperty: function(name) {
 			return typeof this._values[name] !== 'undefined';
 		},
@@ -82,6 +91,16 @@ lc.app.onDefined(["lc.events", "lc.async.Callback"], function() {
 		var ctx = lc.Context.get(element, true);
 		if (!ctx) return undefined;
 		return ctx.getProperty(propertyName);
+	};
+	
+	lc.Context.searchValue = function(element, propertyName) {
+		do {
+			var ctx = lc.Context.get(element, true);
+			if (ctx && ctx.hasProperty(propertyName))
+				return ctx.getProperty(propertyName);
+			element = element.parentNode;
+		} while (element);
+		return undefined;
 	};
 	
 	lc.Context.aggregate = function(element) {

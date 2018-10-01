@@ -34,3 +34,6 @@ Array.prototype.removeElements = function(toRemove) {
 		}
 	}
 };
+Array.prototype.pushAll = function(elements) {
+	Array.prototype.push.apply(this, elements);
+};

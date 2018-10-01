@@ -7,14 +7,14 @@ lc.core.createClass("lc.URL",
  * @constructor Parse the given string
  * @param s string|lc.URL the URL to parse (if a string) or to copy (if already an instance of lc.URL)
  */
-function(s) {
+function(s, doNotResolve) {
 	if ((s instanceof lc.URL) || (typeof s.protocol != 'undefined')) {
 		this.protocol = s.protocol;
 		this.host = s.host;
 		this.port = s.port;
 		this.path = s.path;
 		this.hash = s.hash;
-		this.params = lc.copy(s.params);
+		this.params = lc.core.copy(s.params);
 		return;
 	}
 	if (typeof s.toString == 'function')
@@ -34,7 +34,7 @@ function(s) {
 		} else
 			this.port = null;
 	} else {
-		if (window) {
+		if (window && !doNotResolve) {
 			this.protocol = window.location.protocol.substr(0,window.location.protocol.length-1);
 			this.host = window.location.hostname;
 			this.port = window.location.port;
@@ -43,7 +43,7 @@ function(s) {
 			this.host = "";
 			this.port = "";
 		}
-		if (!s.startsWith("/")) {
+		if (!s.startsWith("/") && !doNotResolve) {
 			// relative path, we need to use the base url
 			var base;
 			if (document.baseURI)
@@ -91,17 +91,19 @@ function(s) {
 	} else
 		this.path = s;
 	
-	// resolve .. in path
-	if (this.path.substr(0,1) != "/" && window.location.pathname) {
-		s = window.location.pathname;
-		i = s.lastIndexOf('/');
-		s = s.substr(0,i+1);
-		this.path = s + this.path;
-	}
-	while ((i = this.path.indexOf('/../')) > 0) {
-		var j = this.path.substr(0,i).lastIndexOf('/');
-		if (j < 0) break;
-		this.path = this.path.substr(0,j+1)+this.path.substr(i+4);
+	if (!doNotResolve) {
+		// resolve .. in path
+		if (this.path.substr(0,1) != "/" && window.location.pathname) {
+			s = window.location.pathname;
+			i = s.lastIndexOf('/');
+			s = s.substr(0,i+1);
+			this.path = s + this.path;
+		}
+		while ((i = this.path.indexOf('/../')) > 0) {
+			var j = this.path.substr(0,i).lastIndexOf('/');
+			if (j < 0) break;
+			this.path = this.path.substr(0,j+1)+this.path.substr(i+4);
+		}
 	}
 	
 	this.host = this.host.toLowerCase();
@@ -156,6 +158,28 @@ function(s) {
 		if (this.port != url.port) return false;
 		if (this.path != url.path) return false;
 		return true;
+	},
+	
+	isRelative: function() {
+		return !this.path.startsWith("/");
+	},
+	
+	applyRelative: function(rel) {
+		var u = new lc.URL(this);
+		if (!u.path.endsWith("/")) {
+			var i = u.path.lastIndexOf('/');
+			u.path = u.path.substring(0, i + 1);
+		}
+		u.path += rel.path;
+		u.params = lc.core.copy(rel.params);
+		u.hash = rel.hash;
+		
+		while ((i = u.path.indexOf('/../')) > 0) {
+			var j = u.path.substr(0,i).lastIndexOf('/');
+			if (j < 0) break;
+			u.path = u.path.substr(0,j+1)+u.path.substr(i+4);
+		}
+		return u;
 	}
 
 });

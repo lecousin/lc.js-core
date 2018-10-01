@@ -35,6 +35,10 @@ lc.core.namespace("lc.locale", {
 			this._updateLocalized(lc.locale._localized[i]);
 	},
 	
+	getLanguage: function() {
+		return lc.locale._lang;
+	},
+	
 	declare: function(baseUrl, namespaces, languages) {
 		if (!Array.isArray(namespaces)) namespaces = [namespaces];
 		for (var i = 0; i < namespaces.length; ++i) {

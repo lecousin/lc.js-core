@@ -73,14 +73,23 @@ lc.core.namespace("lc.http", {
 
 // add a customizer to add future property and listen to readystatechange event
 lc.http.addCustomizer(function(xhr) {
+	if (lc.log.trace("lc.http")) lc.log.trace("lc.http", "Sending HTTP Request " + xhr._http_method + " " + xhr._http_url);
 	xhr.future = new lc.async.Future();
 	xhr.addEventListener('readystatechange', function() {
 		if (xhr.readyState != 4)
 			return;
+		if (lc.log.trace("lc.http")) lc.log.trace("lc.http", "HTTP Response received: " + xhr._http_method + " " + xhr._http_url + " => " + xhr.status + " " + xhr.statusText);
 		xhr.future.success(xhr);
 	});
 });
 
+// catch open method to save information
+window._lc_http_XMLHttpRequest_open = XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+	window._lc_http_XMLHttpRequest_open.apply(this, [method, url, async, user, password]);
+	this._http_method = method;
+	this._http_url = url;
+};
 // catch send method to customize requests, and know pending requests
 window._lc_http_XMLHttpRequest_send = XMLHttpRequest.prototype.send;
 XMLHttpRequest.prototype.send = function(body) {

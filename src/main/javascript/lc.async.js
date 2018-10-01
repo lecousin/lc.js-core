@@ -65,9 +65,11 @@ lc.async.Callback.callListeners = function(listeners, args) {
 			else if (lc.core.instanceOf(listeners[i], lc.async.Callback))
 				listeners[i].apply(args);
 			else
-				throw "Unexpected listener type: " + lc.core.typeOf(listeners[i]);
+				throw new Error("Unexpected listener type: " + lc.core.typeOf(listeners[i]));
 		} catch (error) {
-			lc.log.error("lc.async.Callback", "A listener thrown an exception: " + listeners[i] + ": " + error, error);
+			lc.log.error("lc.async.Callback", "A listener thrown an exception: " +
+				lc.core.instanceOf(listeners[i], lc.async.Callback) ? listeners[i]._fct : listeners[i] +
+				": " + error, error);
 		}
 	}
 };
@@ -81,11 +83,11 @@ lc.async.Callback.callListeners = function(listeners, args) {
  * @throws if the given argument is not supported
  */
 lc.async.Callback.from = function(callback) {
-	if (typeof listeners[i] === 'function')
+	if (typeof callback === 'function')
 		return new lc.async.Callback(window, callback);
 	if (lc.core.instanceOf(callback, lc.async.Callback))
 		return callback;
-	throw "Unexpected type: " + lc.core.typeOf(callback);
+	throw new Error("Unexpected type: " + lc.core.typeOf(callback));
 };
 
 
@@ -108,14 +110,14 @@ lc.core.createClass("lc.async.Future", function() {
 	_doneListeners: null,
 	
 	success: function(result) {
-		if (this._done) throw "Future already done";
+		if (this._done) throw new Error("Future already done");
 		this._result = result;
 		this._done = true;
 		this._callListeners();
 	},
 	
 	error: function(error) {
-		if (this._done) throw "Future already done";
+		if (this._done) throw new Error("Future already done");
 		this._error = error;
 		this._done = true;
 		this._callListeners();
@@ -166,6 +168,11 @@ lc.core.createClass("lc.async.Future", function() {
 		return this._error;
 	},
 	
+	forwardTo: function(future) {
+		this.onsuccess(function(result) { future.success(result); });
+		this.onerror(function(error) { future.error(error); });
+	},
+	
 	_callListeners: function() {
 		if (this._error === undefined)
 			lc.async.Callback.callListeners(this._successListeners, [this._result]);
@@ -179,6 +186,17 @@ lc.core.createClass("lc.async.Future", function() {
 	}
 	
 });
+
+lc.async.Future.alreadySuccess = function(result) {
+	var future = new lc.async.Future();
+	future.success(result);
+	return future;
+};
+lc.async.Future.alreadyError = function(error) {
+	var future = new lc.async.Future();
+	future.error(error);
+	return future;
+};
 
 /**
  * @class lc.async.JoinPoint

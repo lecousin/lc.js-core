@@ -70,6 +70,28 @@ lc.core.namespace("lc.events", {
 			for (var i = 0; i < element.childNodes.length; ++i)
 				lc.events.destroyed(element.childNodes[i]);
 	}
+
+});
+
+lc.app.onDefined("lc.html", function() {
+	
+	lc.html.addCloneHandler(function(original, clone) {
+		if (!clone._eventListeners) return;
+		clone._eventListeners = clone._eventListeners.slice();
+		for (var i = 0; i < clone._eventListeners.length; ++i) {
+			var e = clone._eventListeners[i];
+			clone._eventListeners[i] = {
+				eventType: e.eventType,
+				listener: new lc.async.Callback(e.listener.objThis, e.listener.fct, e.listener.args)
+			};
+			if (clone._eventListeners[i].listener.objThis == original)
+				clone._eventListeners[i].listener.objThis = clone;
+			if (clone._eventListeners[i].listener.args)
+				for (var j = 0; j < clone._eventListeners[i].listener.args.length; ++j)
+					if (clone._eventListeners[i].listener.args[j] == original)
+						clone._eventListeners[i].listener.args[j] = clone;
+		}
+	});
 	
 });
 
@@ -114,14 +136,14 @@ lc.core.createClass("lc.events.Producer", function() {
 			}
 	},
 	
-	trigger: function(eventName, eventObject) {
+	trigger: function(eventName, eventArgs) {
 		if (!this.eventsListeners) return; // destroyed
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
 			throw new Error("Unknown event: "+eventName);
 		if (lc.log.debug("lc.events.Producer"))
-			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this));
-		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventObject);
+			lc.log.debug("lc.events.Producer", eventName + " on " + lc.core.typeOf(this) + " (" + this.eventsListeners[eventName].length + " listeners)");
+		lc.async.Callback.callListeners(this.eventsListeners[eventName], eventArgs);
 	},
 	
 	hasEvent: function(eventName) {
