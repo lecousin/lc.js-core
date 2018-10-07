@@ -1,6 +1,7 @@
 lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) {
 	this._timeout = itemTimeout;
 	this._onrelease = onrelease;
+	this._items = new Map();
 	if (itemTimeout > 0) {
 		if (checkInterval <= 0 || !checkInterval) checkInterval = 30000;
 		var that = this;
@@ -11,7 +12,7 @@ lc.core.createClass("lc.Cache", function(itemTimeout, onrelease, checkInterval) 
 	}
 }, {
 	
-	_items: new Map(),
+	_items: null,
 	
 	set: function(key, item) {
 		var previous = this._items.get(key);

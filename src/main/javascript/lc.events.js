@@ -114,6 +114,7 @@ lc.core.createClass("lc.events.Producer", function() {
 	},
 	
 	unregisterEvents: function(eventsNames) {
+		if (this.eventsListeners === null) return;
 		for (var i = 0; i < eventsNames.length; ++i)
 			delete this.eventsListeners[eventsNames[i].toLowerCase()];
 	},
@@ -126,6 +127,7 @@ lc.core.createClass("lc.events.Producer", function() {
 	},
 	
 	unlisten: function(eventName, listener) {
+		if (this.eventsListeners === null) return;
 		eventName = eventName.toLowerCase();
 		if (typeof this.eventsListeners[eventName] === 'undefined')
 			throw new Error("Unknown event: "+eventName);
@@ -161,12 +163,13 @@ lc.core.createClass("lc.events.Producer", function() {
 				lc.log.warn("lc.events.Producer", "Unknown event from attribute " + a.nodeName);
 				continue;
 			}
-			try {
-				var listener = new Function(a.nodeValue);
-				this.listen(eventName, new lc.async.Callback(this, listener));
-			} catch (error) {
-				lc.log.error("lc.events.Producer", "Invalid event listener function from attribute " + a.nodeName + ": " + a.nodeValue, error);
-			}
+			this.listen(eventName, new lc.async.Callback(this, function(expression, eventName) {
+				try {
+					lc.Context.expression.evaluate("{" + expression + "}", element, this); // TODO event arguments as additions?
+				} catch (error) {
+					lc.log.error("lc.events.Producer", "Error in event listener from attribute on-" + eventName + ": " + expression, error);
+				}
+			}, [a.nodeValue, eventName]));
 		}
 	},
 	

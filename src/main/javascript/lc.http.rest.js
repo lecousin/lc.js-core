@@ -13,6 +13,7 @@ lc.core.namespace("lc.http.rest", {
 			}
 		}
 	},
+	statusHandlers: {},
 	
 	get: function(url, format) {
 		if (!format) format = lc.http.rest.defaultFormat;
@@ -37,8 +38,13 @@ lc.core.namespace("lc.http.rest", {
 	},
 	
 	handleResponseStatus: function(req, result) {
-		// TODO
-		return false;
+		if (req.status == 200) return false;
+		if (typeof lc.http.rest.statusHandlers[req.status] !== undefined) {
+			lc.async.Callback.callListeners(lc.http.rest.statusHandlers[req.status], [req, result]);
+			return true;
+		}
+		result.error(req.status + " (" + req.statusText + ")");
+		return true;
 	},
 	
 	_method: function(method, url, body, format) {

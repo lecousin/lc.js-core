@@ -148,6 +148,9 @@ lc.core.namespace("lc.locale", {
 		this._localized.push(l);
 		if (this._lang)
 			this._updateLocalized(l);
+		lc.events.listen(element, 'destroy', function() {
+			lc.locale._localized.remove(l);
+		});
 	},
 	
 	textNode: function(namespace, key, params) {

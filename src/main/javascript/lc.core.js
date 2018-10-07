@@ -22,8 +22,24 @@ lc.core = {
 	},
 	
 	copy: function(obj) {
+		if (Array.isArray(obj)) return obj.slice();
 		var o = {};
 		for (var n in obj) o[n] = obj[n];
+		return o;
+	},
+	
+	copyDeep: function(o) {
+		if (Array.isArray(o)) {
+			var a = [];
+			for (var i = 0; i < o.length; ++i)
+				a.push(lc.core.copyDeep(o[i]));
+			return a;
+		}
+		if (typeof o === 'object') {
+			var c = {};
+			for (var n in o) c[n] = lc.core.copyDeep(o[n]);
+			return c;
+		}
 		return o;
 	},
 	
@@ -82,6 +98,34 @@ lc.core = {
 		ns[cname].prototype = proto;
 		ns[cname].prototype.constructor = ctor;
 		return ns[cname];
+	},
+	
+	anonymousClass: function(parents, ctor, proto) {
+		var clazz = ctor;
+		clazz._lcClass = "<anonymous>";
+		clazz._lcExtends = [];
+		
+		if (!Array.isArray(parents))
+			parents = [parents];
+
+		var p = {};
+		for (var i = 0; i < parents.length; ++i) {
+			if (!parents[i]) throw new Error("Undefined extended class (index " + (i) + ")");
+			if (typeof parents[i]._lcClass === 'undefined') throw new Error("Not a valid class to extend: " + parents[i]);
+			lc.core.merge(p, parents[i].prototype);
+			if (clazz._lcExtends.indexOf(parents[i]) < 0)
+				clazz._lcExtends.push(parents[i]._lcClass);
+			if (parents[i]._lcExtends)
+				for (var j = 0; j < parents[i]._lcExtends.length; ++j)
+					if (clazz._lcExtends.indexOf(parents[i]._lcExtends[j]) < 0)
+						clazz._lcExtends.push(parents[i]._lcExtends[j]);
+		}
+		for (var n in p)
+			if (typeof proto[n] === 'undefined')
+				proto[n] = p[n];
+		clazz.prototype = proto;
+		clazz.prototype.constructor = ctor;
+		return clazz;
 	},
 	
 	fromName: function(name) {
