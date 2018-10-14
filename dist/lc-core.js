@@ -2188,7 +2188,7 @@ lc.core.namespace("lc.http.rest", {
 	
 	handleResponseStatus: function(req, result) {
 		if (req.status == 200) return false;
-		if (typeof lc.http.rest.statusHandlers[req.status] !== undefined) {
+		if (typeof lc.http.rest.statusHandlers[req.status] !== 'undefined') {
 			lc.async.Callback.callListeners(lc.http.rest.statusHandlers[req.status], [req, result]);
 			return true;
 		}
